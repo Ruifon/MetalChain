@@ -15,8 +15,16 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  *      Invariante: para toda bobina,
  *          massaInicial == saldo + soma das massas das peças derivadas.
  *
- *      Todas as massas são inteiros em GRAMAS (a EVM não opera com ponto
- *      flutuante). Comprimentos são inteiros em MILÍMETROS.
+ *      Versão 2: a bobina passa a gravar a dimensão nominal (bitola do fio ou
+ *      espessura da chapa), herdada por referência pelas peças, e a massa
+ *      linear do produto, usada para conferir se a massa de cada peça é
+ *      compatível com o seu comprimento. Um mesmo certificado não pode ser
+ *      vinculado a duas bobinas.
+ *
+ *      Unidades (a EVM não opera com ponto flutuante): massas em GRAMAS,
+ *      comprimentos em MILÍMETROS, dimensão nominal em MICRÔMETROS
+ *      (5,0 mm = 5000), massa linear em GRAMAS POR METRO e tolerância em
+ *      PONTOS-BASE (600 = 6%).
  */
 contract MetalChain is AccessControl {
     // ------------------------------------------------------------------
@@ -25,6 +33,13 @@ contract MetalChain is AccessControl {
 
     /// @notice Papel de escrita: registra bobinas e gera peças.
     bytes32 public constant OPERADOR = keccak256("OPERADOR");
+
+    /// @notice Versão do contrato.
+    string public constant VERSAO = "2";
+
+    /// @notice Maior tolerância de massa aceita na gênese (20%), para que a
+    ///         conferência de massa por comprimento não possa ser anulada.
+    uint256 public constant TOLERANCIA_MAXIMA = 2000;
 
     // ------------------------------------------------------------------
     // Estruturas
@@ -38,6 +53,9 @@ contract MetalChain is AccessControl {
         string grau;              // categoria ou grau do aço, ex.: "CA-50"
         uint256 massaInicial;     // gramas
         uint256 saldo;            // gramas ainda não atribuídas a peças
+        uint256 dimensaoNominal;  // micrômetros: bitola ou espessura, herdada pelas peças
+        uint256 massaLinear;      // gramas por metro do produto derivado
+        uint256 toleranciaMassa;  // pontos-base admitidos entre massa real e nominal
         bytes32 hashCertificado;  // SHA-256 do arquivo do certificado
         string cidCertificado;    // identificador do arquivo no IPFS
         string certConformidade;  // nº do certificado de conformidade (se houver)
@@ -50,8 +68,8 @@ contract MetalChain is AccessControl {
     struct Peca {
         uint256 id;               // sequencial, gerado pelo contrato
         string bobinaId;          // referência à bobina de origem
-        string descricao;         // ex.: "Vergalhão CA-50 10 mm - barra 12 m"
-        uint256 comprimento;      // milímetros
+        string descricao;         // ex.: "Estribo 10x20 cm - feixe com 50 unidades"
+        uint256 comprimento;      // milímetros (comprimento total de material)
         uint256 massa;            // gramas
         address operador;         // carteira que registrou
         uint256 registradoEm;     // timestamp do bloco
@@ -63,6 +81,9 @@ contract MetalChain is AccessControl {
         string norma;
         string grau;
         string certConformidade;
+        uint256 dimensaoNominal;
+        uint256 massaLinear;
+        uint256 toleranciaMassa;
     }
 
     // ------------------------------------------------------------------
@@ -75,6 +96,10 @@ contract MetalChain is AccessControl {
     /// @notice Nome da indústria associado a cada carteira credenciada.
     /// @dev Mantido após a revogação, para preservar o histórico das consultas.
     mapping(address => string) public nomeIndustria;
+
+    /// @notice Bobina à qual cada certificado (hash) está vinculado.
+    /// @dev Impede que o mesmo certificado sustente duas bobinas.
+    mapping(bytes32 => string) public bobinaDoCertificado;
 
     /// @notice Identificador que será atribuído à próxima peça.
     uint256 public proximaPeca = 1;
@@ -152,21 +177,32 @@ contract MetalChain is AccessControl {
         require(!bobinas[id].existe, "MetalChain: bobina ja registrada");
         require(massa > 0, "MetalChain: massa invalida");
         require(hashCertificado != bytes32(0), "MetalChain: hash do certificado ausente");
+        require(
+            bytes(bobinaDoCertificado[hashCertificado]).length == 0,
+            "MetalChain: certificado ja utilizado"
+        );
+        require(dados.dimensaoNominal > 0, "MetalChain: dimensao invalida");
+        require(dados.massaLinear > 0, "MetalChain: massa linear invalida");
+        require(dados.toleranciaMassa <= TOLERANCIA_MAXIMA, "MetalChain: tolerancia invalida");
 
-        bobinas[id] = Bobina({
-            id: id,
-            lote: dados.lote,
-            norma: dados.norma,
-            grau: dados.grau,
-            massaInicial: massa,
-            saldo: massa,
-            hashCertificado: hashCertificado,
-            cidCertificado: cidCertificado,
-            certConformidade: dados.certConformidade,
-            operador: msg.sender,
-            registradoEm: block.timestamp,
-            existe: true
-        });
+        // Gravação campo a campo: evita o limite de variáveis da pilha da EVM.
+        Bobina storage b = bobinas[id];
+        b.id = id;
+        b.lote = dados.lote;
+        b.norma = dados.norma;
+        b.grau = dados.grau;
+        b.massaInicial = massa;
+        b.saldo = massa;
+        b.dimensaoNominal = dados.dimensaoNominal;
+        b.massaLinear = dados.massaLinear;
+        b.toleranciaMassa = dados.toleranciaMassa;
+        b.hashCertificado = hashCertificado;
+        b.cidCertificado = cidCertificado;
+        b.certConformidade = dados.certConformidade;
+        b.operador = msg.sender;
+        b.registradoEm = block.timestamp;
+        b.existe = true;
+        bobinaDoCertificado[hashCertificado] = id;
 
         emit BobinaRegistrada(id, massa, hashCertificado, msg.sender);
     }
@@ -183,6 +219,11 @@ contract MetalChain is AccessControl {
         Bobina storage bobina = bobinas[bobinaId];
         require(bobina.existe, "MetalChain: bobina inexistente");
         require(massa > 0, "MetalChain: massa invalida");
+        require(comprimento > 0, "MetalChain: comprimento invalido");
+        require(
+            massaCompativel(bobina, comprimento, massa),
+            "MetalChain: massa incompativel com o comprimento"
+        );
         require(massa <= bobina.saldo, "MetalChain: massa insuficiente");
 
         // Baixa (burn): irreversível.
@@ -201,6 +242,23 @@ contract MetalChain is AccessControl {
         });
 
         emit PecaGerada(pecaId, bobinaId, massa, bobina.saldo, msg.sender);
+    }
+
+    /**
+     * @dev A peça herda a dimensão nominal da bobina, então a sua massa precisa
+     *      corresponder ao comprimento declarado: massa nominal = comprimento ×
+     *      massa linear, admitida a tolerância registrada na gênese.
+     *      Em unidades inteiras: mm × g/m = g × 1000.
+     */
+    function massaCompativel(Bobina storage bobina, uint256 comprimento, uint256 massa)
+        internal
+        view
+        returns (bool)
+    {
+        uint256 nominal = comprimento * bobina.massaLinear;
+        uint256 real = massa * 1000;
+        uint256 diferenca = real > nominal ? real - nominal : nominal - real;
+        return diferenca * 10000 <= nominal * bobina.toleranciaMassa;
     }
 
     // ------------------------------------------------------------------

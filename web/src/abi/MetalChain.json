@@ -233,6 +233,51 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "TOLERANCIA_MAXIMA",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "VERSAO",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "bobinaDoCertificado",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "string",
@@ -272,6 +317,21 @@
           {
             "internalType": "uint256",
             "name": "saldo",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "dimensaoNominal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "massaLinear",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toleranciaMassa",
             "type": "uint256"
           },
           {
@@ -395,6 +455,21 @@
           {
             "internalType": "uint256",
             "name": "saldo",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "dimensaoNominal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "massaLinear",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toleranciaMassa",
             "type": "uint256"
           },
           {
@@ -619,6 +694,21 @@
             "internalType": "string",
             "name": "certConformidade",
             "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "dimensaoNominal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "massaLinear",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toleranciaMassa",
+            "type": "uint256"
           }
         ],
         "internalType": "struct MetalChain.DadosBobina",

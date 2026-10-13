@@ -6,9 +6,14 @@ import {
   buscarBobina, contratoEscrita, contratoLeitura, linkTx, mensagemErro, motivoDaRecusa,
   pecaIdDoRecibo, provedorCarteira, temCarteira, trocarParaRede,
 } from "../lib/chain.js";
-import { abreviar, kg, kgParaGramas, metrosParaMm, sha256Arquivo } from "../lib/formato.js";
+import { abreviar, kg, kgParaGramas, metros, metrosParaMm, sha256Arquivo } from "../lib/formato.js";
+import {
+  dimensaoTexto, faixaDeMassa, massaCompativel, massaLinearBitola, massaLinearTexto,
+  rotuloDimensao, toleranciaNbr7480, toleranciaTexto,
+} from "../lib/especificacao.js";
 import { CHAIN_ID, REDE_NOME } from "../config.js";
 
+const kgDecimal = (g) => kg(Math.round(g));
 const PAPEL_OPERADOR = keccakTexto("OPERADOR");
 const CHAVE_BOBINAS = "metalchain-bobinas-recentes";
 
@@ -131,9 +136,12 @@ async function enviarEAcompanhar(enviar, setAndamento) {
 // Gerar peça
 // ---------------------------------------------------------------------------
 
+const RECUSAS_DEMONSTRAVEIS = ["massa insuficiente", "massa incompativel com o comprimento"];
+
 function FormPeca({ bobinaInicial, habilitado }) {
   const [bobinaId, setBobinaId] = useState(bobinaInicial || "");
   const [descricao, setDescricao] = useState("");
+  const [quantidade, setQuantidade] = useState("1");
   const [comprimento, setComprimento] = useState("");
   const [massa, setMassa] = useState("");
   const [bobina, setBobina] = useState(undefined); // undefined: nada digitado; null: inexistente
@@ -166,16 +174,23 @@ function FormPeca({ bobinaInicial, habilitado }) {
   }, [bobinaId, carregarBobina]);
 
   const gramas = kgParaGramas(massa);
-  const mm = metrosParaMm(comprimento);
+  const qtd = /^\d+$/.test(quantidade.trim()) && Number(quantidade) > 0 ? BigInt(quantidade.trim()) : null;
+  const mmUnidade = metrosParaMm(comprimento);
+  const mmTotal = qtd && mmUnidade ? qtd * mmUnidade : null;
   const excesso = bobina && gramas && gramas > bobina.saldo ? gramas - bobina.saldo : 0n;
+  const faixa = bobina && mmTotal ? faixaDeMassa(mmTotal, bobina.massaLinear, bobina.toleranciaMassa) : null;
+  const compativel = bobina && mmTotal && gramas
+    ? massaCompativel(gramas, mmTotal, bobina.massaLinear, bobina.toleranciaMassa)
+    : null;
+  const rotulo = bobina ? rotuloDimensao(bobina.norma) : "Bitola";
 
   async function enviar(forcar) {
     setPodeForcar(false);
-    if (!gramas) { setAndamento({ fase: "erro", texto: "Informe a massa da peça em kg." }); return; }
-    if (mm === null) { setAndamento({ fase: "erro", texto: "Informe o comprimento em metros, ou deixe em branco." }); return; }
+    if (!mmTotal) { setAndamento({ fase: "erro", texto: "Informe a quantidade e o comprimento de cada unidade, em metros." }); return; }
+    if (!gramas) { setAndamento({ fase: "erro", texto: "Informe a massa pesada da peça, em kg." }); return; }
     try {
       const c = await contratoEscrita();
-      const args = [bobinaId.trim(), descricao.trim(), mm, gramas];
+      const args = [bobinaId.trim(), descricao.trim(), mmTotal, gramas];
       const { tx, rec } = await enviarEAcompanhar(
         () => (forcar ? c.gerarPeca(...args, { gasLimit: 300000n }) : comFolgaDeGas(c.gerarPeca, args)),
         setAndamento
@@ -183,21 +198,26 @@ function FormPeca({ bobinaInicial, habilitado }) {
       const ev = pecaIdDoRecibo(rec);
       lembrarBobina(bobinaId.trim());
       setAndamento({ fase: "ok", hash: tx.hash, texto: `Peça nº ${ev.pecaId} registrada no bloco ${rec.blockNumber}. Saldo restante da bobina: ${kg(ev.saldoRestante)}.` });
-      setGerada({ pecaId: ev.pecaId.toString(), txHash: tx.hash, descricao: descricao.trim(), bobinaId: bobinaId.trim(), massa: gramas, comprimento: mm });
-      setDescricao(""); setMassa(""); setComprimento("");
+      setGerada({
+        pecaId: ev.pecaId.toString(), txHash: tx.hash, descricao: descricao.trim(), bobinaId: bobinaId.trim(),
+        massa: gramas, comprimento: mmTotal, dimensao: `${rotulo} ${dimensaoTexto(bobina.dimensaoNominal)}`,
+      });
+      setDescricao(""); setMassa(""); setComprimento(""); setQuantidade("1");
       carregarBobina(bobinaId);
     } catch (e) {
-      const recusaMassa = motivoDaRecusa(e) === "massa insuficiente" || /massa insuficiente/.test(e?.message || "");
+      const motivo = motivoDaRecusa(e) || (e?.message || "").match(/MetalChain: ([a-z ]+)/i)?.[1] || "";
+      const demonstravel = RECUSAS_DEMONSTRAVEIS.includes(motivo.trim());
+      const onde = e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco";
       if (e.hashTransacao) {
         setAndamento({
           fase: "erro", hash: e.hashTransacao,
-          texto: recusaMassa || forcar
-            ? `A transação entrou ${e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco"} e foi revertida pelo contrato${recusaMassa ? " por massa insuficiente" : ""}. O saldo da bobina não mudou, e a tentativa fica registrada publicamente.`
-            : `A transação entrou ${e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco"}, mas falhou, e nada foi gravado. Veja o motivo no explorador de blocos.`,
+          texto: forcar
+            ? `A transação entrou ${onde} e foi revertida pelo contrato. O saldo da bobina não mudou, e a tentativa fica registrada publicamente.`
+            : `A transação entrou ${onde}, mas falhou, e nada foi gravado. Veja o motivo no explorador de blocos.`,
         });
       } else {
         setAndamento({ fase: "erro", texto: mensagemErro(e) });
-        setPodeForcar(recusaMassa);
+        setPodeForcar(demonstravel);
       }
     }
   }
@@ -215,19 +235,32 @@ function FormPeca({ bobinaInicial, habilitado }) {
         </div>
         <div className="campo">
           <label htmlFor="p-desc">Descrição da peça</label>
-          <input id="p-desc" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Vergalhão CA-50 10 mm, barra de 12 m" maxLength={120} />
-          <p className="dica">Textos curtos custam menos para gravar.</p>
+          <input id="p-desc" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Feixe de estribos 10x20 cm" maxLength={120} />
+          <p className="dica">
+            {bobina ? `${rotulo}, norma e grau vêm da bobina; não é preciso escrevê-los.` : "Textos curtos custam menos para gravar."}
+          </p>
         </div>
-        <div className="campo-par">
+        <div className="campo-trio">
           <div className="campo">
-            <label htmlFor="p-comp">Comprimento (m)</label>
-            <input id="p-comp" inputMode="decimal" value={comprimento} onChange={(e) => setComprimento(e.target.value)} placeholder="12" />
+            <label htmlFor="p-qtd">Quantidade</label>
+            <input id="p-qtd" inputMode="numeric" value={quantidade} onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ""))} required />
           </div>
           <div className="campo">
-            <label htmlFor="p-massa">Massa (kg)</label>
-            <input id="p-massa" inputMode="decimal" value={massa} onChange={(e) => setMassa(e.target.value)} placeholder="500" required />
+            <label htmlFor="p-comp">Comprimento de cada (m)</label>
+            <input id="p-comp" inputMode="decimal" value={comprimento} onChange={(e) => setComprimento(e.target.value)} placeholder="12" required />
+          </div>
+          <div className="campo">
+            <label htmlFor="p-massa">Massa pesada (kg)</label>
+            <input id="p-massa" inputMode="decimal" value={massa} onChange={(e) => setMassa(e.target.value)} required />
           </div>
         </div>
+        {faixa && (
+          <p className={compativel === false ? "campo-erro" : "dica"}>
+            Para {metros(mmTotal)} de material, a massa esperada é {kgDecimal(faixa.nominal)}, aceita
+            de {kgDecimal(faixa.min)} a {kgDecimal(faixa.max)}.
+            {compativel === false && " A massa informada está fora dessa faixa: o contrato vai recusar o registro."}
+          </p>
+        )}
         <div className="acoes">
           <button className="btn btn-forte" type="submit" disabled={!habilitado || ocupado || !bobina}>Gerar peça</button>
           {podeForcar && !ocupado && (
@@ -256,10 +289,15 @@ function FormPeca({ bobinaInicial, habilitado }) {
             {excesso > 0n && (
               <p className="campo-erro">A peça passa do saldo em {kg(excesso)}. O contrato vai recusar o registro.</p>
             )}
+            <dl className="campos campos-espec">
+              <div><dt>{rotulo}</dt><dd>{dimensaoTexto(bobina.dimensaoNominal)}</dd></div>
+              <div><dt>Massa linear</dt><dd>{massaLinearTexto(bobina.massaLinear)}</dd></div>
+              <div><dt>Tolerância</dt><dd>{toleranciaTexto(bobina.toleranciaMassa)}</dd></div>
+            </dl>
             <p className="secundario">{[bobina.norma, bobina.grau, bobina.lote && `lote ${bobina.lote}`].filter(Boolean).join(", ")}</p>
           </>
         ) : (
-          <p className="secundario">{buscando ? "Consultando a bobina…" : "Digite o número de uma bobina registrada para ver o saldo disponível."}</p>
+          <p className="secundario">{buscando ? "Consultando a bobina…" : "Digite o número de uma bobina registrada para ver o saldo e a especificação."}</p>
         )}
       </aside>
 
@@ -277,14 +315,43 @@ function FormPeca({ bobinaInicial, habilitado }) {
 // Registrar bobina (gênese)
 // ---------------------------------------------------------------------------
 
+const PRODUTOS = {
+  barra: { nome: "Vergalhão ou fio (bitola)", rotulo: "Bitola (mm)", norma: "ABNT NBR 7480" },
+  chapa: { nome: "Telha ou chapa (espessura)", rotulo: "Espessura (mm)", norma: "ABNT NBR 14513" },
+};
+
 function FormBobina({ habilitado, aoRegistrar }) {
-  const vazio = { id: "", lote: "", norma: "ABNT NBR 7480", grau: "", certConformidade: "", massa: "", cid: "" };
+  const vazio = {
+    id: "", lote: "", produto: "barra", norma: PRODUTOS.barra.norma, grau: "", certConformidade: "",
+    massa: "", dimensao: "", massaLinear: "", tolerancia: "", cid: "",
+  };
   const [d, setD] = useState(vazio);
-  const [arquivo, setArquivo] = useState(null); // { nome, hash }
+  const [arquivo, setArquivo] = useState(null); // { nome, hash, dono }
   const [existe, setExiste] = useState(false);
   const [andamento, setAndamento] = useState(null);
   const [registrada, setRegistrada] = useState(null);
+  const [chaveArquivo, setChaveArquivo] = useState(0); // recria o campo de arquivo após registrar
   const mudar = (k) => (e) => setD({ ...d, [k]: e.target.value });
+  const produto = PRODUTOS[d.produto];
+
+  // Para barras e fios, a massa linear e a tolerância saem da bitola (NBR 7480).
+  function mudarDimensao(e) {
+    const valor = e.target.value;
+    const novo = { ...d, dimensao: valor };
+    if (d.produto === "barra") {
+      const mm = Number(valor.replace(",", "."));
+      const ml = massaLinearBitola(mm);
+      const tol = toleranciaNbr7480(mm);
+      if (ml) novo.massaLinear = (ml / 1000).toFixed(3).replace(".", ",");
+      if (tol) novo.tolerancia = String(tol);
+    }
+    setD(novo);
+  }
+
+  function mudarProduto(e) {
+    const p = e.target.value;
+    setD({ ...d, produto: p, norma: PRODUTOS[p].norma, dimensao: "", massaLinear: "", tolerancia: "" });
+  }
 
   async function verificarExistencia() {
     if (!d.id.trim()) return setExiste(false);
@@ -293,26 +360,40 @@ function FormBobina({ habilitado, aoRegistrar }) {
 
   async function escolherArquivo(f) {
     if (!f) return setArquivo(null);
-    setArquivo({ nome: f.name, hash: null });
-    setArquivo({ nome: f.name, hash: await sha256Arquivo(f) });
+    setArquivo({ nome: f.name, hash: null, dono: "" });
+    const hash = await sha256Arquivo(f);
+    let dono = "";
+    try { dono = await contratoLeitura().bobinaDoCertificado(hash); } catch { /* segue sem a checagem */ }
+    setArquivo({ nome: f.name, hash, dono });
   }
+
+  const numero = (txt) => Number(String(txt).trim().replace(",", "."));
 
   async function enviar() {
     setRegistrada(null);
     const gramas = kgParaGramas(d.massa);
+    const dimUm = Math.round(numero(d.dimensao) * 1000);
+    const mlGm = Math.round(numero(d.massaLinear) * 1000);
+    const tolPb = Math.round(numero(d.tolerancia) * 100);
     if (!gramas) return setAndamento({ fase: "erro", texto: "Informe a massa da bobina em kg." });
+    if (!(dimUm > 0)) return setAndamento({ fase: "erro", texto: `Informe a ${produto.rotulo.toLowerCase()} nominal.` });
+    if (!(mlGm > 0)) return setAndamento({ fase: "erro", texto: "Informe a massa linear do produto, em kg/m." });
+    if (!(tolPb >= 0 && tolPb <= 2000)) return setAndamento({ fase: "erro", texto: "Informe a tolerância de massa, de 0 a 20%." });
     if (!arquivo?.hash) return setAndamento({ fase: "erro", texto: "Selecione o arquivo do certificado de origem." });
     try {
       const c = await contratoEscrita();
-      const dados = { lote: d.lote.trim(), norma: d.norma.trim(), grau: d.grau.trim(), certConformidade: d.certConformidade.trim() };
+      const dados = {
+        lote: d.lote.trim(), norma: d.norma.trim(), grau: d.grau.trim(), certConformidade: d.certConformidade.trim(),
+        dimensaoNominal: BigInt(dimUm), massaLinear: BigInt(mlGm), toleranciaMassa: BigInt(tolPb),
+      };
       const { tx, rec } = await enviarEAcompanhar(
         () => comFolgaDeGas(c.registrarBobina, [d.id.trim(), dados, gramas, arquivo.hash, d.cid.trim()]),
         setAndamento
       );
       lembrarBobina(d.id.trim());
-      setAndamento({ fase: "ok", hash: tx.hash, texto: `Bobina ${d.id.trim()} registrada no bloco ${rec.blockNumber}, com ${kg(gramas)} e o hash do certificado.` });
+      setAndamento({ fase: "ok", hash: tx.hash, texto: `Bobina ${d.id.trim()} registrada no bloco ${rec.blockNumber}, com ${kg(gramas)}, ${produto.rotulo.replace(" (mm)", "").toLowerCase()} de ${dimensaoTexto(dimUm)} e o hash do certificado.` });
       setRegistrada(d.id.trim());
-      setD(vazio); setArquivo(null);
+      setD(vazio); setArquivo(null); setChaveArquivo((k) => k + 1);
     } catch (e) {
       setAndamento({
         fase: "erro", hash: e.hashTransacao,
@@ -324,6 +405,7 @@ function FormBobina({ habilitado, aoRegistrar }) {
   }
 
   const ocupado = andamento?.fase === "assinando" || andamento?.fase === "minerando";
+  const certificadoUsado = !!arquivo?.dono;
 
   return (
     <form className="form form-largo" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
@@ -338,16 +420,36 @@ function FormBobina({ habilitado, aoRegistrar }) {
           <input id="b-massa" inputMode="decimal" value={d.massa} onChange={mudar("massa")} placeholder="2000" required />
         </div>
       </div>
-      <div className="campo-par">
-        <div className="campo">
-          <label htmlFor="b-lote">Lote ou corrida</label>
-          <input id="b-lote" value={d.lote} onChange={mudar("lote")} />
+
+      <fieldset className="grupo">
+        <legend>Especificação do produto</legend>
+        <p className="dica">As peças herdam estes valores. O contrato recusa peças cuja massa não corresponda ao comprimento.</p>
+        <div className="campo-par">
+          <div className="campo">
+            <label htmlFor="b-produto">Produto</label>
+            <select id="b-produto" value={d.produto} onChange={mudarProduto}>
+              {Object.entries(PRODUTOS).map(([k, p]) => <option key={k} value={k}>{p.nome}</option>)}
+            </select>
+          </div>
+          <div className="campo">
+            <label htmlFor="b-dim">{produto.rotulo}</label>
+            <input id="b-dim" inputMode="decimal" value={d.dimensao} onChange={mudarDimensao} placeholder={d.produto === "barra" ? "10" : "0,43"} required />
+          </div>
         </div>
-        <div className="campo">
-          <label htmlFor="b-grau">Grau ou categoria do aço</label>
-          <input id="b-grau" value={d.grau} onChange={mudar("grau")} placeholder="CA-50" />
+        <div className="campo-par">
+          <div className="campo">
+            <label htmlFor="b-ml">Massa linear (kg/m)</label>
+            <input id="b-ml" inputMode="decimal" value={d.massaLinear} onChange={mudar("massaLinear")} required />
+            <p className="dica">{d.produto === "barra" ? "Calculada pela bitola, como na NBR 7480. Pode ajustar." : "Massa por metro do perfil, conforme o catálogo."}</p>
+          </div>
+          <div className="campo">
+            <label htmlFor="b-tol">Tolerância de massa (%)</label>
+            <input id="b-tol" inputMode="decimal" value={d.tolerancia} onChange={mudar("tolerancia")} required />
+            <p className="dica">{d.produto === "barra" ? "Pela NBR 7480: ±6% até 12,5 mm, ±5% de 16 a 20 mm, ±4% acima." : "Conforme a norma do produto. Máximo de 20%."}</p>
+          </div>
         </div>
-      </div>
+      </fieldset>
+
       <div className="campo-par">
         <div className="campo">
           <label htmlFor="b-norma">Norma</label>
@@ -360,17 +462,30 @@ function FormBobina({ habilitado, aoRegistrar }) {
           </datalist>
         </div>
         <div className="campo">
+          <label htmlFor="b-grau">Grau ou categoria do aço</label>
+          <input id="b-grau" value={d.grau} onChange={mudar("grau")} placeholder={d.produto === "barra" ? "CA-50" : "ZAR-230"} />
+        </div>
+      </div>
+      <div className="campo-par">
+        <div className="campo">
+          <label htmlFor="b-lote">Lote ou corrida</label>
+          <input id="b-lote" value={d.lote} onChange={mudar("lote")} />
+        </div>
+        <div className="campo">
           <label htmlFor="b-cc">Certificado de conformidade (se houver)</label>
           <input id="b-cc" value={d.certConformidade} onChange={mudar("certConformidade")} />
         </div>
       </div>
       <div className="campo">
         <label htmlFor="b-arquivo">Arquivo do certificado de origem</label>
-        <input id="b-arquivo" type="file" onChange={(e) => escolherArquivo(e.target.files?.[0])} required />
+        <input key={chaveArquivo} id="b-arquivo" type="file" onChange={(e) => escolherArquivo(e.target.files?.[0])} required />
         {arquivo && (
           <p className="dica">
             {arquivo.hash ? <>Hash SHA-256 que será gravado: <span className="hash">{arquivo.hash}</span></> : "Calculando o hash…"}
           </p>
+        )}
+        {certificadoUsado && (
+          <p className="campo-erro">Este certificado já está vinculado à bobina {arquivo.dono}. Um certificado não pode sustentar duas bobinas.</p>
         )}
       </div>
       <div className="campo">
@@ -378,7 +493,7 @@ function FormBobina({ habilitado, aoRegistrar }) {
         <input id="b-cid" value={d.cid} onChange={mudar("cid")} placeholder="bafy…" autoComplete="off" />
       </div>
       <div className="acoes">
-        <button className="btn btn-forte" type="submit" disabled={!habilitado || ocupado || existe}>Registrar bobina</button>
+        <button className="btn btn-forte" type="submit" disabled={!habilitado || ocupado || existe || certificadoUsado}>Registrar bobina</button>
       </div>
       <Andamento estado={andamento} />
       {registrada && (

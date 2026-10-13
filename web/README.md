@@ -13,7 +13,8 @@ contrato publicado na Sepolia
 
 **Consulta de peça** (a página aberta pelo QR Code)
 
-- mostra a peça, a bobina de origem e a indústria que fez cada registro;
+- mostra a peça, a bitola ou espessura herdada, a bobina de origem e a indústria
+  que fez cada registro;
 - desenha a bobina inteira em uma barra: a parte que virou esta peça, as outras
   peças e o saldo ainda não usado, que somam a massa registrada na entrada;
 - confere o certificado: o arquivo é lido no próprio aparelho, o SHA-256 é
@@ -24,9 +25,15 @@ contrato publicado na Sepolia
 
 - conecta a MetaMask, troca para a rede Sepolia e confere se a carteira é de um
   operador credenciado;
-- **Registrar bobina**: calcula o hash do arquivo do certificado e grava a gênese;
-- **Gerar peça**: mostra o saldo da bobina e uma prévia da baixa na barra; se a
-  massa passa do saldo, avisa antes de enviar e exibe a recusa do contrato;
+- **Registrar bobina**: calcula o hash do arquivo do certificado, avisa se ele já
+  está vinculado a outra bobina e grava a gênese com a especificação do produto
+  (bitola ou espessura, massa linear e tolerância). Para vergalhões e fios, a massa
+  linear e a tolerância são sugeridas a partir da bitola, como na ABNT NBR 7480;
+- **Gerar peça**: a peça herda a bitola da bobina. O operador informa a quantidade,
+  o comprimento de cada unidade e a massa pesada; a tela mostra a faixa de massa que
+  o contrato aceita para aquele comprimento e uma prévia da baixa no saldo. Se a
+  massa passa do saldo ou está fora da faixa, avisa antes de enviar e exibe a recusa
+  do contrato;
 - depois de gerar, mostra a etiqueta com o QR Code, que pode ser baixada em PNG.
 
 Para a demonstração da fraude, o botão *Enviar mesmo assim* manda a transação

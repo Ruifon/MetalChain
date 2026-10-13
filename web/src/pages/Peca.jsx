@@ -5,6 +5,7 @@ import ConferirCertificado from "../components/ConferirCertificado.jsx";
 import { buscarGenealogia, linkEndereco, linkTx, localizarTransacaoDaPeca, mensagemErro } from "../lib/chain.js";
 import { abreviar, dataHora, kg, metros } from "../lib/formato.js";
 import { CONTRATO, REDE_NOME } from "../config.js";
+import { dimensaoTexto, massaLinearTexto, rotuloDimensao, toleranciaTexto } from "../lib/especificacao.js";
 
 export default function Peca() {
   const { id } = useParams();
@@ -66,8 +67,11 @@ export default function Peca() {
         <h1 id="peca-titulo" className="peca-num">Peça nº {peca.id.toString()}</h1>
         <p className="peca-desc">{peca.descricao || "Sem descrição"}</p>
         <dl className="medidas">
+          {bobina.dimensaoNominal > 0n && (
+            <div><dt>{rotuloDimensao(bobina.norma)}, herdada da bobina</dt><dd>{dimensaoTexto(bobina.dimensaoNominal)}</dd></div>
+          )}
           <div><dt>Massa</dt><dd>{kg(peca.massa)}</dd></div>
-          {peca.comprimento > 0n && <div><dt>Comprimento</dt><dd>{metros(peca.comprimento)}</dd></div>}
+          {peca.comprimento > 0n && <div><dt>Comprimento total</dt><dd>{metros(peca.comprimento)}</dd></div>}
           <div><dt>Registrada em</dt><dd>{dataHora(peca.registradoEm)}</dd></div>
           <div><dt>Por</dt><dd>{industriaPeca || abreviar(peca.operador)}</dd></div>
         </dl>
@@ -103,6 +107,8 @@ export default function Peca() {
           <div><dt>Lote ou corrida</dt><dd>{bobina.lote || "Não informado"}</dd></div>
           <div><dt>Norma</dt><dd>{bobina.norma || "Não informada"}</dd></div>
           <div><dt>Grau</dt><dd>{bobina.grau || "Não informado"}</dd></div>
+          {bobina.massaLinear > 0n && <div><dt>Massa linear nominal</dt><dd>{massaLinearTexto(bobina.massaLinear)}</dd></div>}
+          {bobina.massaLinear > 0n && <div><dt>Tolerância de massa</dt><dd>{toleranciaTexto(bobina.toleranciaMassa)}</dd></div>}
           <div><dt>Certificado de conformidade</dt><dd>{bobina.certConformidade || "Não se aplica"}</dd></div>
           <div><dt>Entrada registrada por</dt><dd>{industriaBobina || abreviar(bobina.operador)}</dd></div>
           <div><dt>Entrada em</dt><dd>{dataHora(bobina.registradoEm)}</dd></div>

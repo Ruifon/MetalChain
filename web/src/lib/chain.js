@@ -124,6 +124,12 @@ const MENSAGENS = {
   "hash do certificado ausente": "Selecione o arquivo do certificado.",
   "id vazio": "Informe o número da bobina.",
   "peca inexistente": "Não existe peça registrada com esse número.",
+  "certificado ja utilizado": "Este certificado já está vinculado a outra bobina. Um certificado não pode sustentar duas bobinas.",
+  "massa incompativel com o comprimento": "Massa incompatível com o comprimento: para a bitola ou espessura desta bobina, a peça deveria ter outra massa. O contrato recusou o registro.",
+  "comprimento invalido": "Informe o comprimento da peça.",
+  "dimensao invalida": "Informe a bitola ou espessura nominal.",
+  "massa linear invalida": "Informe a massa linear do produto.",
+  "tolerancia invalida": "A tolerância de massa deve ficar entre 0 e 20%.",
 };
 
 function traduzir(motivo) {

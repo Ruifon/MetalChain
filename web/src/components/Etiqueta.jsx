@@ -12,7 +12,7 @@ export function urlDaPeca(pecaId, txHash) {
  * Etiqueta para fixar na peça: QR Code com o link da consulta pública e os
  * dados mínimos para identificação visual. Pode ser baixada em PNG.
  */
-export default function Etiqueta({ pecaId, txHash, descricao, bobinaId, massa, comprimento }) {
+export default function Etiqueta({ pecaId, txHash, descricao, bobinaId, massa, comprimento, dimensao }) {
   const url = urlDaPeca(pecaId, txHash);
   const [qr, setQr] = useState(null);
 
@@ -53,6 +53,7 @@ export default function Etiqueta({ pecaId, txHash, descricao, bobinaId, massa, c
     g.fillStyle = "#5E6B74";
     g.font = "400 22px Barlow, Arial, sans-serif";
     y += 10;
+    if (dimensao) { g.fillText(`${dimensao} (herdada da bobina)`, x, y); y += 32; }
     g.fillText(`Bobina de origem: ${bobinaId}`, x, y); y += 32;
     g.fillText(`Massa: ${kg(massa)}${Number(comprimento) > 0 ? `   Comprimento: ${metros(comprimento)}` : ""}`, x, y);
 
@@ -74,6 +75,7 @@ export default function Etiqueta({ pecaId, txHash, descricao, bobinaId, massa, c
       <div className="etiqueta-texto">
         <p className="etiqueta-num">Peça nº {pecaId}</p>
         <p>{descricao || "Sem descrição"}</p>
+        {dimensao && <p className="secundario">{dimensao}, herdada da bobina</p>}
         <p className="secundario">Bobina de origem: {bobinaId}</p>
         <p className="link-quebra"><a href={url} target="_blank" rel="noreferrer">{url}</a></p>
         <div className="acoes">

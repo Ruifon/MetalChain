@@ -4,7 +4,9 @@
 o certificado de origem emitido pela usina acompanha a bobina, mas não as peças
 cortadas dela. O MetalChain preserva, de forma imutável e pública, o vínculo entre
 cada peça derivada e o certificado da bobina-mãe. Um controle de massa impede que
-mais aço seja atribuído a um certificado do que o registrado na origem.
+mais aço seja atribuído a um certificado do que o registrado na origem. Na versão 2,
+a peça herda a bitola ou espessura da bobina, o contrato recusa peças cuja massa não
+corresponda ao comprimento e cada certificado sustenta uma única bobina.
 
 > Protótipo desenvolvido como Trabalho de Conclusão de Curso do Bacharelado em
 > Sistemas de Informação do **Ifes, Campus Cachoeiro de Itapemirim** (2026).
@@ -19,7 +21,8 @@ mais aço seja atribuído a um certificado do que o registrado na origem.
   - [Onde cada requisito está implementado](#onde-cada-requisito-está-implementado)
   - [Cenários de teste](#cenários-de-teste)
   - [Resultados obtidos](#resultados-obtidos)
-  - [Execução na rede Sepolia](#execução-na-rede-sepolia)
+  - [Versão 2: o que mudou](#versão-2-o-que-mudou)
+  - [Execução na rede Sepolia (versão 1)](#execução-na-rede-sepolia-versão-1)
   - [Limites do protótipo](#limites-do-protótipo)
 - [Como o sistema funciona](#como-o-sistema-funciona)
 - [Guia do usuário](#guia-do-usuário)
@@ -36,8 +39,10 @@ mais aço seja atribuído a um certificado do que o registrado na origem.
 
 ### Contrato publicado na rede Sepolia
 
-O contrato está publicado na rede pública de testes da Ethereum e pode ser
-conferido por qualquer pessoa no explorador de blocos:
+A **versão 1** do contrato está publicada na rede pública de testes da Ethereum e
+pode ser conferida por qualquer pessoa no explorador de blocos. A versão 2, que
+corrige as duas falhas encontradas nos testes com a interface (veja
+[Versão 2](#versão-2-o-que-mudou)), será publicada em seguida.
 
 | | |
 |---|---|
@@ -56,7 +61,7 @@ npm install
 npx hardhat test
 ```
 
-O resultado esperado é **11 testes aprovados**: os 10 cenários do plano de
+O resultado esperado é **14 testes aprovados**: os 13 cenários do plano de
 validação (Quadro 6 do TCC) e a verificação da invariante de massa em uma
 sequência pseudoaleatória de 60 operações. Os testes rodam em uma rede local,
 sem custo e sem carteira.
@@ -79,6 +84,10 @@ npm run gas
 | Consulta pública, sem carteira e sem custo | `consultarGenealogia` e `consultarBobina` (funções `view`) | CT09 |
 | Verificação de integridade do certificado | `verificarCertificado` | CT10 |
 | Identificação da indústria que fez cada registro | mapeamento `nomeIndustria` | CT09 |
+| Bitola ou espessura herdada pela peça | campo `dimensaoNominal` da `Bobina` | CT01, CT09 |
+| Massa da peça compatível com o comprimento | função interna `massaCompativel` | CT12 |
+| Um certificado sustenta uma única bobina | mapeamento `bobinaDoCertificado` | CT11 |
+| Especificação válida na gênese e na peça | `registrarBobina` e `gerarPeca` | CT13 |
 
 Todo o contrato está em [`contracts/MetalChain.sol`](contracts/MetalChain.sol),
 comentado em português. A ordem das verificações de `gerarPeca` segue a Figura 4
@@ -91,7 +100,7 @@ Arquivo: [`test/MetalChain.test.js`](test/MetalChain.test.js)
 | ID | Cenário | Resultado esperado |
 |---|---|---|
 | CT01 | Gênese legítima de uma bobina de 2.000 kg | Bobina gravada, saldo de 2.000 kg |
-| CT02 | Três peças somando 1.500 kg | Saldo de 500 kg, invariante preservada |
+| CT02 | Três feixes somando 1.500 kg | Saldo de 500 kg, invariante preservada |
 | CT03 | Peça de 600 kg com saldo de 500 kg (fraude de massa) | Transação revertida, estado inalterado |
 | CT04 | Consumo exato do saldo, seguido de nova peça | Primeira aceita (saldo zero), segunda revertida |
 | CT05 | Peça a partir de bobina inexistente | Transação revertida |
@@ -100,22 +109,25 @@ Arquivo: [`test/MetalChain.test.js`](test/MetalChain.test.js)
 | CT08 | Bobina ou peça com massa zero | Transação revertida |
 | CT09 | Consulta pública da genealogia por carteira sem papel | Dados retornados sem custo |
 | CT10 | Certificado original × cópia com 1 byte alterado | Original confere, cópia diverge |
+| CT11 | Segunda bobina com o mesmo certificado | Transação revertida |
+| CT12 | Barra de 12 m declarada com 450 kg; limites de ±6% | Fora da tolerância revertida, nos limites aceita |
+| CT13 | Peça sem comprimento; gênese sem bitola, sem massa linear ou com tolerância acima de 20% | Transações revertidas |
 
 ### Resultados obtidos
 
 Execução em rede local (Hardhat 2.29, Solidity 0.8.24, otimizador ligado com 200 execuções):
 
-- **11 de 11 testes aprovados.** Na sequência pseudoaleatória, 27 operações couberam no
-  saldo e foram aceitas, e 33 foram recusadas pelo contrato. A igualdade
+- **14 de 14 testes aprovados.** Na sequência pseudoaleatória, 31 operações couberam no
+  saldo e foram aceitas, e 29 foram recusadas pelo contrato. A igualdade
   *massa inicial = saldo + soma das peças* se manteve após todas as 60 operações.
 - **Custo por operação:**
 
 | Operação | Gas | Custo a 1 gwei (ETH) |
 |---|---:|---:|
-| Implantação do contrato (uma vez) | 2.112.859 | 0,002113 |
+| Implantação do contrato (uma vez) | 2.228.239 | 0,002228 |
 | `credenciarOperador` | 74.544 | 0,000075 |
-| `registrarBobina` | 346.619 | 0,000347 |
-| `gerarPeca` (descrição de 47 bytes) | 242.572 | 0,000243 |
+| `registrarBobina` | 435.042 | 0,000435 |
+| `gerarPeca` (descrição de 47 bytes) | 247.481 | 0,000247 |
 | `revogarOperador` | 28.036 | 0,000028 |
 | Consultas (`consultarGenealogia`, `verificarCertificado`) | 0 | 0 |
 
@@ -123,7 +135,26 @@ Execução em rede local (Hardhat 2.29, Solidity 0.8.24, otimizador ligado com 2
   custaram exatamente o mesmo. O que varia é o tamanho do texto gravado: cada bloco
   de 32 bytes de descrição acrescenta cerca de 22 mil unidades de gas.
 
-### Execução na rede Sepolia
+### Versão 2: o que mudou
+
+Os testes da interface com dados reais na Sepolia, em 13/10/2026, mostraram duas falhas
+da versão 1:
+
+1. **Certificado reaproveitado.** O contrato aceitava registrar uma segunda bobina com o
+   mesmo certificado, o que permitiria "criar" massa nova com um documento já usado.
+2. **Bitola em texto livre.** A bitola ou espessura só aparecia na descrição digitada pelo
+   operador. Uma peça de "10 mm" podia ser registrada a partir de uma bobina de fio de
+   5,0 mm, e a massa não era conferida contra o comprimento.
+
+Na versão 2, a gênese grava a **dimensão nominal**, a **massa linear** e a **tolerância de
+massa** do produto, a peça herda a dimensão por referência e o contrato recusa:
+
+- uma segunda bobina com um certificado já utilizado (`certificado ja utilizado`);
+- uma peça cuja massa não corresponda ao comprimento, dentro da tolerância registrada
+  (`massa incompativel com o comprimento`). Para barras e fios, a ABNT NBR 7480 admite
+  ±6% de 6,3 a 12,5 mm e nos fios CA-60, ±5% de 16 a 20 mm e ±4% de 22 a 40 mm.
+
+### Execução na rede Sepolia (versão 1)
 
 Em 13/10/2026, os cenários centrais foram repetidos no contrato publicado, com o
 script [`scripts/cenarios-sepolia.js`](scripts/cenarios-sepolia.js) (Seção 5.5 do TCC).
@@ -159,6 +190,8 @@ massa declarada na gênese**. Ele **não** garante:
 - que a massa e o certificado declarados na gênese correspondem à bobina física.
   No protótipo, a gênese é feita pela indústria de transformação, e cada registro fica
   atribuído à carteira de quem o fez;
+- que a massa informada para cada peça foi realmente pesada: a conferência de
+  especificação só recusa valores incompatíveis com o comprimento e a bitola;
 - que a etiqueta com o QR Code permanece na peça correta;
 - a qualidade física do aço, que continua sendo atestada pelos ensaios e pela
   certificação da usina.
@@ -183,7 +216,7 @@ flowchart LR
 1. **Gênese.** Ao receber a bobina, um operador credenciado registra o número da bobina,
    o lote, a norma, o grau do aço, a massa inicial e o hash SHA-256 do certificado de
    qualidade. O arquivo do certificado fica no IPFS, e só a referência vai para a rede.
-2. **Transformação.** A cada peça cortada ou perfilada, o contrato confere quatro regras
+2. **Transformação.** A cada peça cortada ou perfilada, o contrato confere seis regras
    antes de gravar qualquer dado:
 
    | Verificação | Se falhar |
@@ -191,6 +224,8 @@ flowchart LR
    | A carteira tem o papel de operador? | `AccessControlUnauthorizedAccount` |
    | A bobina de origem existe? | `MetalChain: bobina inexistente` |
    | A massa da peça é maior que zero? | `MetalChain: massa invalida` |
+   | O comprimento é maior que zero? | `MetalChain: comprimento invalido` |
+   | A massa corresponde ao comprimento, na bitola da bobina? | `MetalChain: massa incompativel com o comprimento` |
    | A massa cabe no saldo da bobina? | `MetalChain: massa insuficiente` |
 
    Se tudo passar, o saldo da bobina é reduzido e a peça é gravada com a referência
@@ -199,8 +234,10 @@ flowchart LR
    confere se o certificado que recebeu é o mesmo registrado na gênese. A
    [interface web](web/README.md) faz isso a partir do QR Code da etiqueta.
 
-**Unidades:** massas em **gramas** inteiros (2.000 kg = `2000000`), porque a EVM não
-opera com números decimais. Comprimentos em **milímetros**.
+**Unidades:** a EVM não opera com números decimais, então tudo é gravado em inteiros:
+massas em **gramas** (2.000 kg = `2000000`), comprimentos em **milímetros**, bitola ou
+espessura em **micrômetros** (5,0 mm = `5000`), massa linear em **gramas por metro**
+(0,617 kg/m = `617`) e tolerância em **pontos-base** (6% = `600`).
 
 ---
 
@@ -222,7 +259,7 @@ git clone https://github.com/Ruifon/MetalChain.git
 cd MetalChain
 npm install
 npm run compile      # compila o contrato
-npm test             # executa os 11 testes
+npm test             # executa os 14 testes
 npm run gas          # mede o gas de cada operação
 ```
 
@@ -272,10 +309,12 @@ Com o contrato publicado, informe o endereço em `CONTRATO_ENDERECO` no `.env` e
 npx hardhat run scripts/cenarios-sepolia.js --network sepolia
 ```
 
-O script registra uma bobina de 2.000 kg, gera duas peças (1.500 kg e 400 kg),
-tenta gerar uma peça de 600 kg com saldo de 100 kg, que o contrato recusa, e faz
-as consultas públicas. Os hashes de todas as transações ficam em
-`resultados-sepolia.md`, com links para o Etherscan.
+O script registra um rolo de vergalhão CA-50 de 10 mm com 2.000 kg, gera dois feixes
+de barras de 12 m e tenta três fraudes, que o contrato recusa e que ficam registradas
+na rede como transações revertidas: um feixe maior que o saldo, uma barra de 12 m
+declarada com 450 kg e uma segunda bobina com o mesmo certificado. Depois faz as
+consultas públicas. Os hashes de todas as transações ficam em
+`resultados-sepolia-v2.md`, com links para o Etherscan.
 
 ### Hash do certificado
 
@@ -292,7 +331,7 @@ node scripts/hash-certificado.js caminho/do/certificado.pdf
 
 ```
 contracts/MetalChain.sol        contrato inteligente
-test/MetalChain.test.js         cenários CT01 a CT10 e invariante de massa
+test/MetalChain.test.js         cenários CT01 a CT13 e invariante de massa
 scripts/deploy.js               publicação na Sepolia e credenciamento do operador
 scripts/medir-gas.js            gas por operação e evolução do custo de gerarPeca
 scripts/hash-certificado.js     SHA-256 de um arquivo em formato bytes32
@@ -307,11 +346,11 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 
 | Etapa | Situação |
 |---|---|
-| Contrato inteligente | Concluído |
-| Testes automatizados (CT01 a CT10) | Concluídos, 11 de 11 aprovados |
+| Contrato inteligente, versão 2 | Concluído ([o que mudou](#versão-2-o-que-mudou)) |
+| Testes automatizados (CT01 a CT13) | Concluídos, 14 de 14 aprovados |
 | Medição de custos | Concluída |
-| Publicação na rede Sepolia | Concluída ([ver contrato](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370)) |
-| Cenários repetidos na rede Sepolia | Concluídos em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia)) |
+| Versão 1 na rede Sepolia, com os cenários | Concluída em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-1)) |
+| Versão 2 na rede Sepolia, com os cenários | Em andamento |
 | Interface web (área da indústria e consulta por QR Code) | Pronta, testada em rede local; publicação no Vercel em andamento ([ver `web/`](web/README.md)) |
 
 ## Licença
