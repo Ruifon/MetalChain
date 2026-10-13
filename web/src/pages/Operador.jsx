@@ -102,6 +102,17 @@ function Andamento({ estado }) {
   );
 }
 
+/**
+ * Envia com limite de gas 30% acima da estimativa. Na Sepolia, desde a
+ * atualização Glamsterdam, a criação de estado é cobrada à parte, e a
+ * estimativa feita pela carteira pode ficar curta; sem folga, a transação
+ * pode falhar por falta de gas.
+ */
+async function comFolgaDeGas(metodo, args) {
+  const estimado = await metodo.estimateGas(...args);
+  return metodo(...args, { gasLimit: (estimado * 13n) / 10n });
+}
+
 async function enviarEAcompanhar(enviar, setAndamento) {
   setAndamento({ fase: "assinando", texto: "Confirme a operação na MetaMask." });
   const tx = await enviar();
@@ -166,7 +177,7 @@ function FormPeca({ bobinaInicial, habilitado }) {
       const c = await contratoEscrita();
       const args = [bobinaId.trim(), descricao.trim(), mm, gramas];
       const { tx, rec } = await enviarEAcompanhar(
-        () => (forcar ? c.gerarPeca(...args, { gasLimit: 300000n }) : c.gerarPeca(...args)),
+        () => (forcar ? c.gerarPeca(...args, { gasLimit: 300000n }) : comFolgaDeGas(c.gerarPeca, args)),
         setAndamento
       );
       const ev = pecaIdDoRecibo(rec);
@@ -180,7 +191,9 @@ function FormPeca({ bobinaInicial, habilitado }) {
       if (e.hashTransacao) {
         setAndamento({
           fase: "erro", hash: e.hashTransacao,
-          texto: `A transação entrou ${e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco"} e foi revertida pelo contrato${recusaMassa ? " por massa insuficiente" : ""}. O saldo da bobina não mudou, e a tentativa fica registrada publicamente.`,
+          texto: recusaMassa || forcar
+            ? `A transação entrou ${e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco"} e foi revertida pelo contrato${recusaMassa ? " por massa insuficiente" : ""}. O saldo da bobina não mudou, e a tentativa fica registrada publicamente.`
+            : `A transação entrou ${e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco"}, mas falhou, e nada foi gravado. Veja o motivo no explorador de blocos.`,
         });
       } else {
         setAndamento({ fase: "erro", texto: mensagemErro(e) });
@@ -293,7 +306,7 @@ function FormBobina({ habilitado, aoRegistrar }) {
       const c = await contratoEscrita();
       const dados = { lote: d.lote.trim(), norma: d.norma.trim(), grau: d.grau.trim(), certConformidade: d.certConformidade.trim() };
       const { tx, rec } = await enviarEAcompanhar(
-        () => c.registrarBobina(d.id.trim(), dados, gramas, arquivo.hash, d.cid.trim()),
+        () => comFolgaDeGas(c.registrarBobina, [d.id.trim(), dados, gramas, arquivo.hash, d.cid.trim()]),
         setAndamento
       );
       lembrarBobina(d.id.trim());
@@ -301,7 +314,12 @@ function FormBobina({ habilitado, aoRegistrar }) {
       setRegistrada(d.id.trim());
       setD(vazio); setArquivo(null);
     } catch (e) {
-      setAndamento({ fase: "erro", hash: e.hashTransacao, texto: mensagemErro(e) });
+      setAndamento({
+        fase: "erro", hash: e.hashTransacao,
+        texto: e.hashTransacao
+          ? `A transação entrou ${e.blocoTransacao ? `no bloco ${e.blocoTransacao}` : "em um bloco"}, mas falhou, e nada foi gravado. ${motivoDaRecusa(e) ? mensagemErro(e) : "Veja o motivo no explorador de blocos."}`
+          : mensagemErro(e),
+      });
     }
   }
 
