@@ -19,6 +19,7 @@ mais aço seja atribuído a um certificado do que o registrado na origem.
   - [Onde cada requisito está implementado](#onde-cada-requisito-está-implementado)
   - [Cenários de teste](#cenários-de-teste)
   - [Resultados obtidos](#resultados-obtidos)
+  - [Execução na rede Sepolia](#execução-na-rede-sepolia)
   - [Limites do protótipo](#limites-do-protótipo)
 - [Como o sistema funciona](#como-o-sistema-funciona)
 - [Guia do usuário](#guia-do-usuário)
@@ -122,6 +123,34 @@ Execução em rede local (Hardhat 2.29, Solidity 0.8.24, otimizador ligado com 2
   custaram exatamente o mesmo. O que varia é o tamanho do texto gravado: cada bloco
   de 32 bytes de descrição acrescenta cerca de 22 mil unidades de gas.
 
+### Execução na rede Sepolia
+
+Em 13/10/2026, os cenários centrais foram repetidos no contrato publicado, com o
+script [`scripts/cenarios-sepolia.js`](scripts/cenarios-sepolia.js) (Seção 5.5 do TCC).
+Cada transação pode ser aberta no Etherscan:
+
+| Cenário | Operação | Resultado | Bloco | Gas | Transação |
+|---|---|---|---:|---:|---|
+| CT01 | Gênese da bobina `BOB-SEPOLIA-2026-10-13-51249`, 2.000 kg | Aceita | 11907488 | 1.243.323 | [`0x2f908b8b…ac7a`](https://sepolia.etherscan.io/tx/0x2f908b8bbabdef3263e8b717a9a705280a5b08d6c5ba60e5ca2308a86ab0ac7a) |
+| CT02 | Peça nº 1, 1.500 kg (saldo: 500 kg) | Aceita | 11907489 | 822.352 | [`0xd802eb17…e518`](https://sepolia.etherscan.io/tx/0xd802eb174f6e98945b3c7d75c7720cf83cad7a60bdc45f0c09c119891c96e518) |
+| CT02 | Peça nº 2, 400 kg (saldo: 100 kg) | Aceita | 11907490 | 822.352 | [`0xdff9de11…e98a`](https://sepolia.etherscan.io/tx/0xdff9de117b002871c3aa093b80f4103cda78a77e7b91d492d34d7e296842e98a) |
+| CT03 | Peça de 600 kg com saldo de 100 kg | **Revertida**: `MetalChain: massa insuficiente` | 11907491 | 31.640 | [`0xbff4ceca…f131`](https://sepolia.etherscan.io/tx/0xbff4ceca0217406c4c2708b5b3f5c11389b725410e2aa019c8796074cc42f131) |
+
+Leituras públicas, sem transação e sem custo: a genealogia da peça nº 1 retornou a
+bobina de origem, a norma ABNT NBR 7480 e a indústria que a registrou; o saldo final
+foi de 100 kg; o certificado original
+([`certificados/certificado-demonstracao.txt`](certificados/certificado-demonstracao.txt))
+conferiu, e uma cópia com um caractere alterado foi rejeitada.
+
+**Por que o gas foi cerca de 4 vezes maior na Sepolia?** O mesmo script, com os mesmos
+dados, consumiu 281.503 (gênese) e 198.212 (peça) na rede local. Desde 06/10/2026 a
+Sepolia roda a atualização *Glamsterdam*, que inclui a
+[EIP-8037](https://eips.ethereum.org/EIPS/eip-8037) e encarece a criação de estado:
+uma nova posição de armazenamento passa de 20.000 para 97.920 unidades de gas. A
+transação revertida, que não cria estado, custou quase o mesmo nas duas redes
+(30.462 × 31.640). A rede principal ainda não tem data para essa atualização
+([anúncio](https://blog.ethereum.org/2026/09/17/glamsterdam-testnet-announcement)).
+
 ### Limites do protótipo
 
 O sistema garante que **nenhuma peça pode ser vinculada a um certificado acima da
@@ -134,7 +163,7 @@ massa declarada na gênese**. Ele **não** garante:
 - a qualidade física do aço, que continua sendo atestada pelos ensaios e pela
   certificação da usina.
 
-Esses pontos são discutidos nas Seções 4.4.3, 4.6.3 e 5.5 do TCC.
+Esses pontos são discutidos nas Seções 4.4.3, 4.6.3 e 5.6 do TCC.
 
 ---
 
@@ -280,7 +309,7 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 | Testes automatizados (CT01 a CT10) | Concluídos, 11 de 11 aprovados |
 | Medição de custos | Concluída |
 | Publicação na rede Sepolia | Concluída ([ver contrato](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370)) |
-| Cenários repetidos na rede Sepolia | Em andamento |
+| Cenários repetidos na rede Sepolia | Concluídos em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia)) |
 | Interface web (painel da indústria e consulta por QR Code) | Em desenvolvimento |
 
 ## Licença
