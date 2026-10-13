@@ -33,6 +33,15 @@ Para a demonstração da fraude, o botão *Enviar mesmo assim* manda a transaç�
 recusada para a rede, para que ela fique registrada no Etherscan como revertida.
 A MetaMask avisa que a transação deve falhar; é só confirmar.
 
+### Atenção na MetaMask
+
+Ao confirmar uma transação, **desmarque a opção "Added protection"** (proteção
+adicional) e não use a conta como "Smart Account". Com essas opções ligadas, a
+MetaMask encaminha a chamada por um contrato intermediário próprio
+(`DelegationManager`), a estimativa de gas fica curta e a gênese da bobina falha
+por falta de gas. Na tela de confirmação, o destino deve ser o próprio contrato
+MetalChain (`0xCE8A…2370`).
+
 ## Rodar no computador
 
 ```bash
