@@ -1,0 +1,11 @@
+CERTIFICADO DE QUALIDADE - DOCUMENTO DE DEMONSTRACAO
+(arquivo ficticio, usado apenas para validar o prototipo MetalChain)
+
+Bobina: BOB-SEPOLIA-DEMO
+Produto: Vergalhao CA-50 - rolo
+Norma: ABNT NBR 7480
+Corrida: 48213
+Massa liquida: 2000 kg
+Limite de escoamento: 560 MPa
+Limite de resistencia: 680 MPa
+Alongamento: 14 %

@@ -33,6 +33,17 @@ mais aço seja atribuído a um certificado do que o registrado na origem.
 
 ## Para a banca examinadora
 
+### Contrato publicado na rede Sepolia
+
+O contrato está publicado na rede pública de testes da Ethereum e pode ser
+conferido por qualquer pessoa no explorador de blocos:
+
+| | |
+|---|---|
+| **Endereço do contrato** | [`0xCE8A2190A6977e11060D3BD725fD317a12E82370`](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370) |
+| **Transação de implantação** | [`0xbfd73651…6dde81`](https://sepolia.etherscan.io/tx/0xbfd73651e146b69a520030628a85adcfb307324cd2ef32bee291ec60296dde81) |
+| **Credenciamento do operador** | [`0x4e633828…dae56d0`](https://sepolia.etherscan.io/tx/0x4e6338284baa70bb1a49cc4344abe814a3277ca78267fd74a4aa5e085dae56d0) |
+
 ### Verificação em 5 minutos
 
 Com o [Node.js](https://nodejs.org) 18 ou superior instalado:
@@ -223,6 +234,19 @@ $env:REPORT_GAS=1; npx hardhat test
 > Nunca o envie ao repositório nem o compartilhe. Use sempre uma carteira criada só
 > para testes.
 
+### Cenários na rede Sepolia
+
+Com o contrato publicado, informe o endereço em `CONTRATO_ENDERECO` no `.env` e rode:
+
+```bash
+npx hardhat run scripts/cenarios-sepolia.js --network sepolia
+```
+
+O script registra uma bobina de 2.000 kg, gera duas peças (1.500 kg e 400 kg),
+tenta gerar uma peça de 600 kg com saldo de 100 kg, que o contrato recusa, e faz
+as consultas públicas. Os hashes de todas as transações ficam em
+`resultados-sepolia.md`, com links para o Etherscan.
+
 ### Hash do certificado
 
 Para obter o hash SHA-256 de um certificado (por exemplo, um PDF), no formato
@@ -242,6 +266,8 @@ test/MetalChain.test.js         cenários CT01 a CT10 e invariante de massa
 scripts/deploy.js               publicação na Sepolia e credenciamento do operador
 scripts/medir-gas.js            gas por operação e evolução do custo de gerarPeca
 scripts/hash-certificado.js     SHA-256 de um arquivo em formato bytes32
+scripts/cenarios-sepolia.js     repete na Sepolia a gênese, as peças e a tentativa de fraude
+certificados/                   certificado de demonstração usado nos cenários
 hardhat.config.js               configuração do Hardhat e da rede Sepolia
 .env.example                    modelo das variáveis de ambiente
 ```
@@ -253,7 +279,8 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 | Contrato inteligente | Concluído |
 | Testes automatizados (CT01 a CT10) | Concluídos, 11 de 11 aprovados |
 | Medição de custos | Concluída |
-| Publicação na rede Sepolia | Em andamento |
+| Publicação na rede Sepolia | Concluída ([ver contrato](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370)) |
+| Cenários repetidos na rede Sepolia | Em andamento |
 | Interface web (painel da indústria e consulta por QR Code) | Em desenvolvimento |
 
 ## Licença
