@@ -1,0 +1,21 @@
+{
+  "name": "metalchain",
+  "version": "1.0.0",
+  "description": "MetalChain — rastreabilidade de aço fracionado em blockchain (TCC Ifes 2026)",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "gas": "hardhat run scripts/medir-gas.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia"
+  },
+  "author": "Rui de Souza Fontoura Junior",
+  "license": "MIT",
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.29.1"
+  }
+}
