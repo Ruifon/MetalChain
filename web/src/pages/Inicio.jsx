@@ -7,7 +7,8 @@ export default function Inicio() {
   const valido = /^\d+$/.test(numero.trim()) && numero.trim() !== "0";
 
   return (
-    <main className="pagina inicio">
+    <main className="pagina pagina-larga inicio">
+      <div className="inicio-grade">
       <section className="inicio-topo">
         <h1 className="titulo-grande">De onde veio este aço?</h1>
         <p className="lead">
@@ -54,6 +55,7 @@ export default function Inicio() {
           </li>
         </ol>
       </section>
+      </div>
 
       <p className="secundario">
         É de uma indústria credenciada? <Link to="/operador">Registrar bobinas e peças</Link>.

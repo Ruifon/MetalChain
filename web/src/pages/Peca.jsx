@@ -60,7 +60,8 @@ export default function Peca() {
   const outras = bobina.massaInicial - bobina.saldo - peca.massa;
 
   return (
-    <main className="pagina">
+    <main className="pagina pagina-larga">
+      <div className="peca-cabeca">
       <section className="peca-topo" aria-labelledby="peca-titulo">
         <h1 id="peca-titulo" className="peca-num">Peça nº {peca.id.toString()}</h1>
         <p className="peca-desc">{peca.descricao || "Sem descrição"}</p>
@@ -80,6 +81,7 @@ export default function Peca() {
           nem pela própria indústria.
         </p>
       </div>
+      </div>
 
       <section className="bloco" aria-labelledby="bobina-titulo">
         <h2 id="bobina-titulo">Bobina de origem</h2>
@@ -97,7 +99,7 @@ export default function Peca() {
           dos {kg(bobina.massaInicial)} registrados na entrada, por isso o certificado desta
           bobina não pode ser usado para aço que não veio dela.
         </p>
-        <dl className="campos">
+        <dl className="campos campos-3">
           <div><dt>Lote ou corrida</dt><dd>{bobina.lote || "Não informado"}</dd></div>
           <div><dt>Norma</dt><dd>{bobina.norma || "Não informada"}</dd></div>
           <div><dt>Grau</dt><dd>{bobina.grau || "Não informado"}</dd></div>
@@ -107,6 +109,7 @@ export default function Peca() {
         </dl>
       </section>
 
+      <div className="duas-colunas">
       <section className="bloco" aria-labelledby="cert-titulo">
         <h2 id="cert-titulo">Certificado de origem</h2>
         <p className="explica">
@@ -132,6 +135,7 @@ export default function Peca() {
           )}
         </ul>
       </section>
+      </div>
 
       <p className="limite">
         O MetalChain garante o vínculo entre esta peça e o certificado da bobina de origem.
