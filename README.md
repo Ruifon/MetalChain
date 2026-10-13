@@ -196,7 +196,8 @@ flowchart LR
    Se tudo passar, o saldo da bobina é reduzido e a peça é gravada com a referência
    à bobina-mãe, na mesma transação. Qualquer falha desfaz a transação inteira.
 3. **Consulta.** Qualquer pessoa, sem carteira, consulta a genealogia da peça e
-   confere se o certificado que recebeu é o mesmo registrado na gênese.
+   confere se o certificado que recebeu é o mesmo registrado na gênese. A
+   [interface web](web/README.md) faz isso a partir do QR Code da etiqueta.
 
 **Unidades:** massas em **gramas** inteiros (2.000 kg = `2000000`), porque a EVM não
 opera com números decimais. Comprimentos em **milímetros**.
@@ -297,6 +298,7 @@ scripts/medir-gas.js            gas por operação e evolução do custo de gera
 scripts/hash-certificado.js     SHA-256 de um arquivo em formato bytes32
 scripts/cenarios-sepolia.js     repete na Sepolia a gênese, as peças e a tentativa de fraude
 certificados/                   certificado de demonstração usado nos cenários
+web/                            interface web: consulta por QR Code e área da indústria
 hardhat.config.js               configuração do Hardhat e da rede Sepolia
 .env.example                    modelo das variáveis de ambiente
 ```
@@ -310,7 +312,7 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 | Medição de custos | Concluída |
 | Publicação na rede Sepolia | Concluída ([ver contrato](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370)) |
 | Cenários repetidos na rede Sepolia | Concluídos em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia)) |
-| Interface web (painel da indústria e consulta por QR Code) | Em desenvolvimento |
+| Interface web (área da indústria e consulta por QR Code) | Pronta, testada em rede local; publicação no Vercel em andamento ([ver `web/`](web/README.md)) |
 
 ## Licença
 
