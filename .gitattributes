@@ -1,0 +1,4 @@
+# O certificado de demonstração é comparado por hash SHA-256 com o valor
+# gravado na blockchain. Tratá-lo como binário impede que o Git altere as
+# quebras de linha e mude o hash em outro sistema operacional.
+certificados/** binary
