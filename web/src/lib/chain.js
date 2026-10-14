@@ -130,6 +130,9 @@ const MENSAGENS = {
   "dimensao invalida": "Informe a bitola ou espessura nominal.",
   "massa linear invalida": "Informe a massa linear do produto.",
   "tolerancia invalida": "A tolerância de massa deve ficar entre 0 e 20%.",
+  "carteira invalida": "Endereço de carteira inválido.",
+  "nome vazio": "Informe o nome da indústria.",
+  "bobina de outra industria": "Esta bobina foi registrada por outra indústria. Só a indústria que registrou a bobina pode gerar peças dela; o contrato recusou o registro.",
 };
 
 function traduzir(motivo) {
@@ -147,7 +150,10 @@ export function mensagemErro(e) {
     return "Você cancelou a operação na MetaMask. Nada foi registrado.";
   }
   if (e?.revert?.name === "AccessControlUnauthorizedAccount") {
-    return "Esta carteira não é de um operador credenciado. Peça ao administrador para credenciá-la.";
+    const papel = e.revert.args?.[1];
+    return papel && /^0x0+$/.test(papel)
+      ? "Só a carteira administradora pode credenciar ou revogar indústrias."
+      : "Esta carteira não é de um operador credenciado. Peça ao administrador para credenciá-la.";
   }
   if (e?.reason) return traduzir(e.reason);
   if (e?.revert?.args?.[0]) return traduzir(e.revert.args[0]);

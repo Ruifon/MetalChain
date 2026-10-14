@@ -73,7 +73,7 @@ npm install
 npx hardhat test
 ```
 
-O resultado esperado é **14 testes aprovados**: os 13 cenários do plano de
+O resultado esperado é **15 testes aprovados**: os 14 cenários do plano de
 validação (Quadro 6 do TCC) e a verificação da invariante de massa em uma
 sequência pseudoaleatória de 60 operações. Os testes rodam em uma rede local,
 sem custo e sem carteira.
@@ -100,6 +100,8 @@ npm run gas
 | Massa da peça compatível com o comprimento | função interna `massaCompativel` | CT12 |
 | Um certificado sustenta uma única bobina | mapeamento `bobinaDoCertificado` | CT11 |
 | Especificação válida na gênese e na peça | `registrarBobina` e `gerarPeca` | CT13 |
+| Só a indústria que registrou a bobina gera peças dela | `require(bobina.operador == msg.sender, ...)` em `gerarPeca` | CT14 |
+| Credenciamento e revogação de indústrias pela interface | aba Administração (`credenciarOperador`, `revogarOperador`) | CT07 |
 
 Todo o contrato está em [`contracts/MetalChain.sol`](contracts/MetalChain.sol),
 comentado em português. A ordem das verificações de `gerarPeca` segue a Figura 4
@@ -124,22 +126,23 @@ Arquivo: [`test/MetalChain.test.js`](test/MetalChain.test.js)
 | CT11 | Segunda bobina com o mesmo certificado | Transação revertida |
 | CT12 | Barra de 12 m declarada com 450 kg; limites de ±6% | Fora da tolerância revertida, nos limites aceita |
 | CT13 | Peça sem comprimento; gênese sem bitola, sem massa linear ou com tolerância acima de 20% | Transações revertidas |
+| CT14 | Indústria credenciada tenta gerar peça da bobina de outra indústria | Transação revertida |
 
 ### Resultados obtidos
 
 Execução em rede local (Hardhat 2.29, Solidity 0.8.24, otimizador ligado com 200 execuções):
 
-- **14 de 14 testes aprovados.** Na sequência pseudoaleatória, 31 operações couberam no
+- **15 de 15 testes aprovados.** Na sequência pseudoaleatória, 31 operações couberam no
   saldo e foram aceitas, e 29 foram recusadas pelo contrato. A igualdade
   *massa inicial = saldo + soma das peças* se manteve após todas as 60 operações.
 - **Custo por operação:**
 
 | Operação | Gas | Custo a 1 gwei (ETH) |
 |---|---:|---:|
-| Implantação do contrato (uma vez) | 2.228.239 | 0,002228 |
+| Implantação do contrato (uma vez) | 2.251.162 | 0,002251 |
 | `credenciarOperador` | 74.544 | 0,000075 |
 | `registrarBobina` | 435.042 | 0,000435 |
-| `gerarPeca` (descrição de 47 bytes) | 247.481 | 0,000247 |
+| `gerarPeca` (descrição de 47 bytes) | 249.627 | 0,000250 |
 | `revogarOperador` | 28.036 | 0,000028 |
 | Consultas (`consultarGenealogia`, `verificarCertificado`) | 0 | 0 |
 
@@ -163,7 +166,12 @@ massa** do produto, a peça herda a dimensão por referência e o contrato recus
 
 - uma segunda bobina com um certificado já utilizado (`certificado ja utilizado`);
 - uma peça cuja massa não corresponda ao comprimento, dentro da tolerância registrada
-  (`massa incompativel com o comprimento`). Para barras e fios, a ABNT NBR 7480 admite
+  (`massa incompativel com o comprimento`).
+
+Na **versão 3**, com mais de uma indústria credenciada, o contrato passou a recusar também
+peças geradas por uma indústria a partir da bobina registrada por outra
+(`bobina de outra industria`). A interface ganhou a aba **Administração**, para credenciar e
+revogar indústrias, e mostra *acesso restrito* para carteiras não credenciadas. Para barras e fios, a ABNT NBR 7480 admite
   ±6% de 6,3 a 12,5 mm e nos fios CA-60, ±5% de 16 a 20 mm e ±4% de 22 a 40 mm.
 
 ### Execução na rede Sepolia (versão 2)
@@ -290,7 +298,7 @@ git clone https://github.com/Ruifon/MetalChain.git
 cd MetalChain
 npm install
 npm run compile      # compila o contrato
-npm test             # executa os 14 testes
+npm test             # executa os 15 testes
 npm run gas          # mede o gas de cada operação
 ```
 
@@ -362,7 +370,7 @@ node scripts/hash-certificado.js caminho/do/certificado.pdf
 
 ```
 contracts/MetalChain.sol        contrato inteligente
-test/MetalChain.test.js         cenários CT01 a CT13 e invariante de massa
+test/MetalChain.test.js         cenários CT01 a CT14 e invariante de massa
 scripts/deploy.js               publicação na Sepolia e credenciamento do operador
 scripts/medir-gas.js            gas por operação e evolução do custo de gerarPeca
 scripts/hash-certificado.js     SHA-256 de um arquivo em formato bytes32
@@ -377,8 +385,8 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 
 | Etapa | Situação |
 |---|---|
-| Contrato inteligente, versão 2 | Concluído ([o que mudou](#versão-2-o-que-mudou)) |
-| Testes automatizados (CT01 a CT13) | Concluídos, 14 de 14 aprovados |
+| Contrato inteligente, versão 3 | Concluído ([o que mudou](#versão-2-o-que-mudou)); publicação na Sepolia em andamento |
+| Testes automatizados (CT01 a CT14) | Concluídos, 15 de 15 aprovados |
 | Medição de custos | Concluída |
 | Versão 1 na rede Sepolia, com os cenários | Concluída em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-1)) |
 | Versão 2 na rede Sepolia, com os cenários | Concluída em 14/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-2)) |

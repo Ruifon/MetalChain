@@ -21,6 +21,9 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  *      compatível com o seu comprimento. Um mesmo certificado não pode ser
  *      vinculado a duas bobinas.
  *
+ *      Versão 3: só a indústria que registrou a bobina (a carteira da gênese)
+ *      pode gerar peças dela, o que permite várias indústrias no mesmo contrato.
+ *
  *      Unidades (a EVM não opera com ponto flutuante): massas em GRAMAS,
  *      comprimentos em MILÍMETROS, dimensão nominal em MICRÔMETROS
  *      (5,0 mm = 5000), massa linear em GRAMAS POR METRO e tolerância em
@@ -35,7 +38,7 @@ contract MetalChain is AccessControl {
     bytes32 public constant OPERADOR = keccak256("OPERADOR");
 
     /// @notice Versão do contrato.
-    string public constant VERSAO = "2";
+    string public constant VERSAO = "3";
 
     /// @notice Maior tolerância de massa aceita na gênese (20%), para que a
     ///         conferência de massa por comprimento não possa ser anulada.
@@ -218,6 +221,7 @@ contract MetalChain is AccessControl {
     ) external onlyRole(OPERADOR) returns (uint256 pecaId) {
         Bobina storage bobina = bobinas[bobinaId];
         require(bobina.existe, "MetalChain: bobina inexistente");
+        require(bobina.operador == msg.sender, "MetalChain: bobina de outra industria");
         require(massa > 0, "MetalChain: massa invalida");
         require(comprimento > 0, "MetalChain: comprimento invalido");
         require(

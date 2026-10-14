@@ -1,4 +1,4 @@
-// Testes do contrato MetalChain v2 — cenários CT01 a CT13 do plano de validação.
+// Testes do contrato MetalChain v3 — cenários CT01 a CT14 do plano de validação.
 // Unidades: massas em GRAMAS (2.000 kg = 2_000_000 g), comprimentos em MILÍMETROS,
 // dimensão nominal em MICRÔMETROS, massa linear em GRAMAS POR METRO e tolerância
 // em PONTOS-BASE (600 = 6%).
@@ -36,11 +36,12 @@ const HASH_CERT = ethers.sha256(CERTIFICADO);
 const HASH_OUTRO = ethers.sha256(Buffer.from("Outro certificado"));
 
 async function implantar() {
-  const [admin, operador, intruso, consumidor] = await ethers.getSigners();
+  const [admin, operador, intruso, consumidor, outraIndustria] = await ethers.getSigners();
   const MetalChain = await ethers.getContractFactory("MetalChain");
   const mc = await MetalChain.deploy("Indústria Demonstração Ltda");
   await mc.credenciarOperador(operador.address, "Transformadora Exemplo S.A.");
-  return { mc, admin, operador, intruso, consumidor };
+  await mc.credenciarOperador(outraIndustria.address, "Metalúrgica Exemplo Ltda.");
+  return { mc, admin, operador, intruso, consumidor, outraIndustria };
 }
 
 async function comBobina() {
@@ -263,6 +264,27 @@ describe("MetalChain — plano de validação", function () {
     await expect(
       mc.connect(operador).registrarBobina("BOB-X", { ...DADOS, toleranciaMassa: 2001n }, 2000n * KG, HASH_OUTRO, "")
     ).to.be.revertedWith("MetalChain: tolerancia invalida");
+  });
+});
+
+describe("MetalChain — várias indústrias", function () {
+  it("CT14 — bobina de outra indústria: um operador credenciado não gera peças da bobina de outra indústria", async function () {
+    const { mc, operador, outraIndustria } = await loadFixture(comBobina);
+    const proximaAntes = await mc.proximaPeca();
+
+    await expect(
+      mc.connect(outraIndustria).gerarPeca(BOBINA_ID, "Feixe de outra indústria", mm(100n * KG), 100n * KG)
+    ).to.be.revertedWith("MetalChain: bobina de outra industria");
+    expect((await mc.consultarBobina(BOBINA_ID)).saldo).to.equal(2000n * KG);
+    expect(await mc.proximaPeca()).to.equal(proximaAntes);
+
+    // a outra indústria registra e transforma as suas próprias bobinas
+    await mc.connect(outraIndustria).registrarBobina("BOB-OUTRA-001", DADOS, 1000n * KG, HASH_OUTRO, "");
+    await mc.connect(outraIndustria).gerarPeca("BOB-OUTRA-001", "Feixe próprio", mm(100n * KG), 100n * KG);
+    const [, , industriaPeca] = await mc.consultarGenealogia(proximaAntes);
+    expect(industriaPeca).to.equal("Metalúrgica Exemplo Ltda.");
+    // e a indústria dona da primeira bobina continua operando normalmente
+    await mc.connect(operador).gerarPeca(BOBINA_ID, "Feixe", mm(100n * KG), 100n * KG);
   });
 });
 

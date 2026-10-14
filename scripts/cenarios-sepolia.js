@@ -1,4 +1,4 @@
-// Repete na rede Sepolia os cenários centrais do plano de validação (contrato v2),
+// Repete na rede Sepolia os cenários centrais do plano de validação (contrato v3),
 // deixando cada operação registrada publicamente, com hash conferível no Etherscan:
 //   CT01  gênese de um rolo de vergalhão CA-50 de 10 mm, 2.000 kg, com o hash do certificado
 //   CT02  dois feixes legítimos de barras de 12 m, pesados (massa real dentro da tolerância)
@@ -50,7 +50,7 @@ async function main() {
   const conteudo = fs.readFileSync(arquivo);
   const hashCert = ethers.sha256(conteudo);
   const sufixo = `${new Date().toISOString().slice(0, 10)}-${Date.now() % 100000}`;
-  const bobinaId = process.env.BOBINA_ID || `BOB-V2-${sufixo}`;
+  const bobinaId = process.env.BOBINA_ID || `BOB-V3-${sufixo}`;
 
   // Vergalhão CA-50 de 10 mm em rolo: 0,617 kg/m, tolerância de ±6% (ABNT NBR 7480)
   const dados = {
@@ -103,7 +103,7 @@ async function main() {
 
   // Relatório para o TCC
   const linhas = [
-    `# Cenários executados na rede Sepolia (contrato v2)`, ``,
+    `# Cenários executados na rede Sepolia (contrato v3)`, ``,
     `- Data: ${new Date().toISOString()}`,
     `- Contrato: [${endereco}](https://sepolia.etherscan.io/address/${endereco})`,
     `- Operador: ${operador.address}`,
@@ -115,8 +115,8 @@ async function main() {
     ``,
     `Leituras públicas (sem custo): genealogia da peça nº ${peca.id} retornou a bobina ${peca.bobinaId}, bitola herdada de ${Number(bobina.dimensaoNominal) / 1000} mm, registrada por "${industria}"; saldo final de ${saldoFinal / KG} kg; certificado original confere = ${confere}; cópia alterada confere = ${diverge}; certificado vinculado à bobina ${dono}.`,
   ];
-  fs.writeFileSync("resultados-sepolia-v2.md", linhas.join("\n") + "\n");
-  console.log(`\nRelatório gravado em resultados-sepolia-v2.md`);
+  fs.writeFileSync("resultados-sepolia-v3.md", linhas.join("\n") + "\n");
+  console.log(`\nRelatório gravado em resultados-sepolia-v3.md`);
 }
 
 main().catch((e) => { console.error(e); process.exitCode = 1; });

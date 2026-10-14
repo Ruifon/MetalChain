@@ -220,6 +220,17 @@ select:focus { border-color: var(--aco); outline: 3px solid var(--amarelo); outl
 .etiqueta-qr img, .qr-vazio { width: 200px; height: 200px; display: block; }
 .etiqueta-num { font: 700 44px/1 var(--display); margin-bottom: 8px; }
 
+/* ---------- Acesso restrito e administração ---------- */
+.restrito { background: var(--chapa); border: 1px solid var(--linha); border-left: 5px solid var(--vermelho); padding: 18px 22px; max-width: 760px; }
+.restrito h2 { font: 600 26px/1.15 var(--display); margin: 0 0 10px; }
+.restrito-endereco { background: var(--zinco); padding: 10px 12px; border-radius: 4px; }
+.industrias { list-style: none; padding: 0; margin: 8px 0 0; }
+.industrias li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.industrias li > div { flex: 1; min-width: 0; }
+.industria-nome { font-weight: 600; margin: 0; }
+.industrias .hash { margin: 0; }
+.industria-estado { font-size: 14px; color: var(--carepa); }
+
 /* ---------- Rodapé ---------- */
 .rodape { border-top: 1px solid var(--linha); }
 .rodape p { max-width: 1080px; margin: 0 auto; padding: 18px 20px; font-size: 14px; color: var(--carepa); }

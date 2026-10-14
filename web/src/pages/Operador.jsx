@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { id as keccakTexto } from "ethers";
+import { id as keccakTexto, isAddress, ZeroHash } from "ethers";
 import BarraMassa from "../components/BarraMassa.jsx";
 import Etiqueta from "../components/Etiqueta.jsx";
 import {
@@ -11,7 +11,7 @@ import {
   dimensaoTexto, faixaDeMassa, massaCompativel, massaLinearBitola, massaLinearTexto,
   rotuloDimensao, toleranciaNbr7480, toleranciaTexto,
 } from "../lib/especificacao.js";
-import { CHAIN_ID, REDE_NOME } from "../config.js";
+import { BLOCO_INICIAL, CHAIN_ID, REDE_NOME } from "../config.js";
 
 const kgDecimal = (g) => kg(Math.round(g));
 const PAPEL_OPERADOR = keccakTexto("OPERADOR");
@@ -36,6 +36,7 @@ function useCarteira() {
   const [chainId, setChainId] = useState(null);
   const [perfil, setPerfil] = useState(null); // { operador, nome }
   const [erro, setErro] = useState(null);
+  const [versaoPerfil, setVersaoPerfil] = useState(0); // recarrega o papel após credenciar
 
   const atualizar = useCallback(async () => {
     if (!temCarteira()) return;
@@ -65,11 +66,11 @@ function useCarteira() {
     if (!conta) return;
     let vivo = true;
     const c = contratoLeitura();
-    Promise.all([c.hasRole(PAPEL_OPERADOR, conta), c.nomeIndustria(conta)])
-      .then(([operador, nome]) => vivo && setPerfil({ operador, nome }))
+    Promise.all([c.hasRole(PAPEL_OPERADOR, conta), c.hasRole(ZeroHash, conta), c.nomeIndustria(conta)])
+      .then(([operador, admin, nome]) => vivo && setPerfil({ operador, admin, nome }))
       .catch((e) => vivo && setErro(mensagemErro(e)));
     return () => { vivo = false; };
-  }, [conta]);
+  }, [conta, versaoPerfil]);
 
   async function conectar() {
     setErro(null);
@@ -86,7 +87,8 @@ function useCarteira() {
     try { await trocarParaRede(); await atualizar(); } catch (e) { setErro(mensagemErro(e)); }
   }
 
-  return { conta, chainId, perfil, erro, conectar, trocarRede, redeCerta: chainId === CHAIN_ID };
+  const recarregarPerfil = () => setVersaoPerfil((v) => v + 1);
+  return { conta, chainId, perfil, erro, conectar, trocarRede, recarregarPerfil, redeCerta: chainId === CHAIN_ID };
 }
 
 // ---------------------------------------------------------------------------
@@ -136,9 +138,9 @@ async function enviarEAcompanhar(enviar, setAndamento) {
 // Gerar peça
 // ---------------------------------------------------------------------------
 
-const RECUSAS_DEMONSTRAVEIS = ["massa insuficiente", "massa incompativel com o comprimento"];
+const RECUSAS_DEMONSTRAVEIS = ["massa insuficiente", "massa incompativel com o comprimento", "bobina de outra industria"];
 
-function FormPeca({ bobinaInicial, habilitado }) {
+function FormPeca({ bobinaInicial, habilitado, conta }) {
   const [bobinaId, setBobinaId] = useState(bobinaInicial || "");
   const [descricao, setDescricao] = useState("");
   const [quantidade, setQuantidade] = useState("1");
@@ -149,6 +151,7 @@ function FormPeca({ bobinaInicial, habilitado }) {
   const [andamento, setAndamento] = useState(null);
   const [podeForcar, setPodeForcar] = useState(false);
   const [gerada, setGerada] = useState(null);
+  const [donaBobina, setDonaBobina] = useState(""); // nome da indústria que registrou a bobina
   const recentes = lerRecentes();
   const consulta = useRef(0);
 
@@ -161,6 +164,10 @@ function FormPeca({ bobinaInicial, habilitado }) {
     try {
       const b = await buscarBobina(idBob.trim());
       if (n === consulta.current) setBobina(b);
+      if (b) {
+        const nomeDona = await contratoLeitura().nomeIndustria(b.operador).catch(() => "");
+        if (n === consulta.current) setDonaBobina(nomeDona);
+      }
     } catch {
       if (n === consulta.current) setBobina(undefined);
     } finally {
@@ -183,6 +190,7 @@ function FormPeca({ bobinaInicial, habilitado }) {
     ? massaCompativel(gramas, mmTotal, bobina.massaLinear, bobina.toleranciaMassa)
     : null;
   const rotulo = bobina ? rotuloDimensao(bobina.norma) : "Bitola";
+  const deOutraIndustria = !!(bobina && conta && bobina.operador.toLowerCase() !== conta.toLowerCase());
 
   async function enviar(forcar) {
     setPodeForcar(false);
@@ -289,12 +297,19 @@ function FormPeca({ bobinaInicial, habilitado }) {
             {excesso > 0n && (
               <p className="campo-erro">A peça passa do saldo em {kg(excesso)}. O contrato vai recusar o registro.</p>
             )}
+            {deOutraIndustria && (
+              <p className="campo-erro">
+                Esta bobina foi registrada por {donaBobina || "outra indústria"}. Só a indústria que registrou a
+                bobina pode gerar peças dela; o contrato vai recusar o registro.
+              </p>
+            )}
             <dl className="campos campos-espec">
               <div><dt>{rotulo}</dt><dd>{dimensaoTexto(bobina.dimensaoNominal)}</dd></div>
               <div><dt>Massa linear</dt><dd>{massaLinearTexto(bobina.massaLinear)}</dd></div>
               <div><dt>Tolerância</dt><dd>{toleranciaTexto(bobina.toleranciaMassa)}</dd></div>
             </dl>
             <p className="secundario">{[bobina.norma, bobina.grau, bobina.lote && `lote ${bobina.lote}`].filter(Boolean).join(", ")}</p>
+            {donaBobina && !deOutraIndustria && <p className="secundario">Registrada pela sua indústria, {donaBobina}.</p>}
           </>
         ) : (
           <p className="secundario">{buscando ? "Consultando a bobina…" : "Digite o número de uma bobina registrada para ver o saldo e a especificação."}</p>
@@ -506,6 +521,134 @@ function FormBobina({ habilitado, aoRegistrar }) {
 }
 
 // ---------------------------------------------------------------------------
+// Administração: credenciar e revogar indústrias
+// ---------------------------------------------------------------------------
+
+function useIndustrias() {
+  const [lista, setLista] = useState(null); // null: carregando; [] vazia; undefined: indisponível
+  const carregar = useCallback(async () => {
+    try {
+      const c = contratoLeitura();
+      const [cred, rev] = await Promise.all([
+        c.queryFilter(c.filters.OperadorCredenciado(), BLOCO_INICIAL),
+        c.queryFilter(c.filters.OperadorRevogado(), BLOCO_INICIAL),
+      ]);
+      const eventos = [...cred, ...rev].sort((a, b) => a.blockNumber - b.blockNumber || a.index - b.index);
+      const mapa = new Map();
+      for (const ev of eventos) {
+        const carteira = ev.args.carteira;
+        if (ev.fragment.name === "OperadorCredenciado") mapa.set(carteira.toLowerCase(), { carteira, nome: ev.args.nome, ativo: true });
+        else if (mapa.has(carteira.toLowerCase())) mapa.get(carteira.toLowerCase()).ativo = false;
+      }
+      setLista([...mapa.values()]);
+    } catch {
+      setLista(undefined);
+    }
+  }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+  return { lista, carregar };
+}
+
+function FormAdmin({ contaAtual, aoMudar }) {
+  const [carteira, setCarteira] = useState("");
+  const [nome, setNome] = useState("");
+  const [situacao, setSituacao] = useState(null); // { operador, nome }
+  const [andamento, setAndamento] = useState(null);
+  const { lista, carregar } = useIndustrias();
+  const valida = isAddress(carteira.trim());
+
+  useEffect(() => {
+    setSituacao(null);
+    if (!valida) return;
+    let vivo = true;
+    const c = contratoLeitura();
+    Promise.all([c.hasRole(PAPEL_OPERADOR, carteira.trim()), c.nomeIndustria(carteira.trim())])
+      .then(([operador, n]) => vivo && setSituacao({ operador, nome: n }))
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [carteira, valida]);
+
+  async function executar(acao, alvo = carteira.trim(), nomeAlvo = nome.trim()) {
+    try {
+      const c = await contratoEscrita();
+      const { tx, rec } = await enviarEAcompanhar(
+        () => (acao === "credenciar" ? comFolgaDeGas(c.credenciarOperador, [alvo, nomeAlvo]) : comFolgaDeGas(c.revogarOperador, [alvo])),
+        setAndamento
+      );
+      setAndamento({
+        fase: "ok", hash: tx.hash,
+        texto: acao === "credenciar"
+          ? `${nomeAlvo} credenciada no bloco ${rec.blockNumber}. A carteira já pode registrar bobinas e peças.`
+          : `Acesso revogado no bloco ${rec.blockNumber}. Os registros já feitos por essa carteira continuam valendo e mantêm o nome da indústria.`,
+      });
+      if (acao === "credenciar") { setCarteira(""); setNome(""); }
+      carregar();
+      if (alvo.toLowerCase() === contaAtual?.toLowerCase()) aoMudar();
+    } catch (e) {
+      setAndamento({ fase: "erro", hash: e.hashTransacao, texto: mensagemErro(e) });
+    }
+  }
+
+  const ocupado = andamento?.fase === "assinando" || andamento?.fase === "minerando";
+
+  return (
+    <div className="form-grade">
+      <form className="form" onSubmit={(e) => { e.preventDefault(); executar("credenciar"); }}>
+        <p className="secundario">
+          Só as carteiras credenciadas aqui podem registrar bobinas e peças. O contrato confere o
+          credenciamento em cada transação; a interface apenas facilita o pedido.
+        </p>
+        <div className="campo">
+          <label htmlFor="a-carteira">Endereço da carteira da indústria</label>
+          <input id="a-carteira" value={carteira} onChange={(e) => setCarteira(e.target.value)} placeholder="0x…" autoComplete="off" required />
+          {carteira && !valida && <p className="campo-erro">Endereço inválido. Ele começa com 0x e tem 42 caracteres.</p>}
+          {situacao && (
+            <p className="dica">
+              {situacao.operador
+                ? `Esta carteira já está credenciada como ${situacao.nome || "indústria sem nome"}.`
+                : situacao.nome ? `Já foi credenciada como ${situacao.nome} e está com o acesso revogado.` : "Esta carteira ainda não foi credenciada."}
+            </p>
+          )}
+        </div>
+        <div className="campo">
+          <label htmlFor="a-nome">Nome da indústria</label>
+          <input id="a-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Metalúrgica Exemplo Ltda." maxLength={60} required />
+          <p className="dica">O nome aparece na consulta pública de cada registro feito por essa carteira e fica gravado de forma permanente.</p>
+        </div>
+        <div className="acoes">
+          <button className="btn btn-forte" type="submit" disabled={ocupado || !valida || !nome.trim() || situacao?.operador}>Credenciar indústria</button>
+          {situacao?.operador && (
+            <button type="button" className="btn btn-quieto" disabled={ocupado} onClick={() => executar("revogar")}>Revogar acesso</button>
+          )}
+        </div>
+        <Andamento estado={andamento} />
+      </form>
+
+      <aside className="painel-bobina" aria-live="polite">
+        <h3>Indústrias credenciadas</h3>
+        {lista === null && <p className="secundario">Consultando o contrato…</p>}
+        {lista === undefined && <p className="secundario">Não foi possível listar agora. Use o campo ao lado para consultar uma carteira.</p>}
+        {Array.isArray(lista) && lista.length === 0 && <p className="secundario">Nenhuma indústria credenciada ainda.</p>}
+        {Array.isArray(lista) && lista.length > 0 && (
+          <ul className="industrias">
+            {lista.map((i) => (
+              <li key={i.carteira}>
+                <span className={`ponto ${i.ativo ? "ponto-ok" : "ponto-alerta"}`} aria-hidden="true" />
+                <div>
+                  <p className="industria-nome">{i.nome}</p>
+                  <p className="hash pequeno">{i.carteira}</p>
+                </div>
+                <span className="industria-estado">{i.ativo ? "Credenciada" : "Revogada"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Página
 // ---------------------------------------------------------------------------
 
@@ -513,9 +656,23 @@ export default function Operador() {
   const cart = useCarteira();
   const [aba, setAba] = useState("peca");
   const [bobinaEscolhida, setBobinaEscolhida] = useState("");
-  const habilitado = !!(cart.conta && cart.redeCerta && cart.perfil?.operador);
+  const [copiado, setCopiado] = useState(false);
+  const pronto = !!(cart.conta && cart.redeCerta && cart.perfil);
+  const operador = pronto && cart.perfil.operador;
+  const admin = pronto && cart.perfil.admin;
+  const abaAtual = operador ? aba : "admin";
 
   useEffect(() => { document.title = "Área da indústria · MetalChain"; return () => { document.title = "MetalChain"; }; }, []);
+
+  async function copiarEndereco() {
+    try { await navigator.clipboard.writeText(cart.conta); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch { /* sem área de transferência */ }
+  }
+
+  const papel = !cart.perfil ? "Verificando o credenciamento…"
+    : cart.perfil.operador && cart.perfil.admin ? "Administrador e operador"
+    : cart.perfil.operador ? "Operador credenciado"
+    : cart.perfil.admin ? "Administrador"
+    : "Carteira não credenciada";
 
   return (
     <main className="pagina pagina-larga">
@@ -530,7 +687,7 @@ export default function Operador() {
           </p>
         ) : !cart.conta ? (
           <>
-            <p>Conecte a carteira credenciada da sua indústria.</p>
+            <p>O acesso é restrito às indústrias credenciadas. Conecte a carteira da sua indústria.</p>
             <button className="btn btn-forte" onClick={cart.conectar}>Conectar MetaMask</button>
           </>
         ) : !cart.redeCerta ? (
@@ -540,31 +697,46 @@ export default function Operador() {
           </>
         ) : (
           <div className="carteira-ok">
-            <span className={`ponto ${cart.perfil?.operador ? "ponto-ok" : "ponto-alerta"}`} aria-hidden="true" />
+            <span className={`ponto ${operador || admin ? "ponto-ok" : "ponto-alerta"}`} aria-hidden="true" />
             <div>
               <p className="carteira-nome">{cart.perfil?.nome || "Carteira sem nome registrado"}</p>
               <p className="hash pequeno">{cart.conta}</p>
             </div>
-            <p className="carteira-papel">
-              {cart.perfil == null ? "Verificando o credenciamento…" : cart.perfil.operador ? "Operador credenciado" : "Esta carteira não é de um operador credenciado"}
-            </p>
+            <p className="carteira-papel">{papel}</p>
           </div>
         )}
         {cart.erro && <div className="aviso aviso-erro" role="alert"><p>{cart.erro}</p></div>}
       </section>
 
-      <div className="abas" role="tablist">
-        <button role="tab" aria-selected={aba === "peca"} className={aba === "peca" ? "ativa" : ""} onClick={() => setAba("peca")}>Gerar peça</button>
-        <button role="tab" aria-selected={aba === "bobina"} className={aba === "bobina" ? "ativa" : ""} onClick={() => setAba("bobina")}>Registrar bobina</button>
-      </div>
+      {pronto && !operador && !admin && (
+        <section className="restrito" aria-labelledby="restrito-titulo">
+          <h2 id="restrito-titulo">Acesso restrito às indústrias credenciadas</h2>
+          <p>
+            Esta carteira não está credenciada para registrar bobinas e peças. O controle não é feito pelo
+            site: é o próprio contrato que recusa qualquer gravação de uma carteira não credenciada.
+          </p>
+          <p>Para obter acesso, envie o endereço abaixo ao administrador do sistema.</p>
+          <p className="restrito-endereco"><span className="hash">{cart.conta}</span></p>
+          <div className="acoes">
+            <button type="button" className="btn" onClick={copiarEndereco}>{copiado ? "Endereço copiado" : "Copiar endereço"}</button>
+          </div>
+        </section>
+      )}
 
-      <div role="tabpanel">
-        {aba === "peca" ? (
-          <FormPeca bobinaInicial={bobinaEscolhida} habilitado={habilitado} />
-        ) : (
-          <FormBobina habilitado={habilitado} aoRegistrar={(id) => { setBobinaEscolhida(id); setAba("peca"); }} />
-        )}
-      </div>
+      {(operador || admin) && (
+        <>
+          <div className="abas" role="tablist">
+            {operador && <button role="tab" aria-selected={abaAtual === "peca"} className={abaAtual === "peca" ? "ativa" : ""} onClick={() => setAba("peca")}>Gerar peça</button>}
+            {operador && <button role="tab" aria-selected={abaAtual === "bobina"} className={abaAtual === "bobina" ? "ativa" : ""} onClick={() => setAba("bobina")}>Registrar bobina</button>}
+            {admin && <button role="tab" aria-selected={abaAtual === "admin"} className={abaAtual === "admin" ? "ativa" : ""} onClick={() => setAba("admin")}>Administração</button>}
+          </div>
+          <div role="tabpanel">
+            {abaAtual === "peca" && <FormPeca bobinaInicial={bobinaEscolhida} habilitado={operador} conta={cart.conta} />}
+            {abaAtual === "bobina" && <FormBobina habilitado={operador} aoRegistrar={(id) => { setBobinaEscolhida(id); setAba("peca"); }} />}
+            {abaAtual === "admin" && <FormAdmin contaAtual={cart.conta} aoMudar={cart.recarregarPerfil} />}
+          </div>
+        </>
+      )}
     </main>
   );
 }
