@@ -2,6 +2,7 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
+const contas = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
 // Apenas para ambientes sem acesso ao download do compilador oficial:
 // usa o solcjs instalado pelo npm. No uso normal, deixe SOLC_LOCAL vazio
@@ -29,9 +30,23 @@ module.exports = {
     settings: { optimizer: { enabled: true, runs: 200 } },
   },
   networks: {
-    sepolia: {
-      url: SEPOLIA_RPC_URL || "",
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+    // Rede local: NO_THROW=1 faz o nó registrar transações revertidas, como
+    // uma rede pública, em vez de interromper o script (scripts/comparar-redes.js).
+    hardhat: { throwOnTransactionFailures: process.env.NO_THROW !== "1" },
+    sepolia: { url: SEPOLIA_RPC_URL || "", accounts: contas, chainId: 11155111 },
+    // Redes usadas na comparação de custos. Os endereços públicos funcionam
+    // sem cadastro; com uma chave da Alchemy, use as URLs dela no .env.
+    hoodi: {
+      url: process.env.HOODI_RPC_URL || "https://ethereum-hoodi-rpc.publicnode.com",
+      accounts: contas, chainId: 560048,
+    },
+    arbitrumSepolia: {
+      url: process.env.ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc",
+      accounts: contas, chainId: 421614,
+    },
+    baseSepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      accounts: contas, chainId: 84532,
     },
   },
   etherscan: { apiKey: ETHERSCAN_API_KEY || "" },

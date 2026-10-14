@@ -6,7 +6,9 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "gas": "hardhat run scripts/medir-gas.js",
-    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia"
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "redes": "hardhat run scripts/comparar-redes.js",
+    "redes:tabela": "node scripts/tabela-redes.js"
   },
   "author": "Rui de Souza Fontoura Junior",
   "license": "MIT",

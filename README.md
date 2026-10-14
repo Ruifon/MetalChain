@@ -356,6 +356,26 @@ declarada com 450 kg e uma segunda bobina com o mesmo certificado. Depois faz as
 consultas públicas. Os hashes de todas as transações ficam em
 `resultados-sepolia-v2.md`, com links para o Etherscan.
 
+### Comparação de custos entre redes
+
+O mesmo roteiro (implantação, credenciamento, CT01, CT02, as fraudes CT03, CT12 e
+CT11 e a tentativa de uma segunda indústria cortar a bobina da primeira, CT14) roda
+em qualquer rede configurada. Cada execução publica um contrato novo e grava o gas
+e a taxa de cada operação em `resultados-redes/<rede>.json` e `.md`:
+
+```bash
+npm run redes -- --network sepolia
+npm run redes -- --network hoodi
+npm run redes -- --network arbitrumSepolia
+npm run redes -- --network baseSepolia
+npm run redes:tabela        # junta tudo em resultados-redes/comparacao.md
+```
+
+A carteira do `.env` precisa de ETH de teste em cada rede. A segunda indústria do
+CT14 é uma carteira criada pelo próprio script e abastecida com o mínimo para uma
+transação. Na rede local, sem custo: `NO_THROW=1 npm run redes` (no PowerShell,
+`$env:NO_THROW="1"; npm run redes`).
+
 ### Hash do certificado
 
 Para obter o hash SHA-256 de um certificado (por exemplo, um PDF), no formato
@@ -376,9 +396,11 @@ scripts/deploy.js               publicação na Sepolia e credenciamento do oper
 scripts/medir-gas.js            gas por operação e evolução do custo de gerarPeca
 scripts/hash-certificado.js     SHA-256 de um arquivo em formato bytes32
 scripts/cenarios-sepolia.js     repete na Sepolia a gênese, as peças e a tentativa de fraude
+scripts/comparar-redes.js       mesmo roteiro em qualquer rede, com gas e taxa de cada operação
+scripts/tabela-redes.js         tabela comparativa dos resultados das redes
 certificados/                   certificado de demonstração usado nos cenários
 web/                            interface web: consulta por QR Code e área da indústria
-hardhat.config.js               configuração do Hardhat e da rede Sepolia
+hardhat.config.js               configuração do Hardhat e das redes de teste
 .env.example                    modelo das variáveis de ambiente
 ```
 
@@ -386,11 +408,12 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 
 | Etapa | Situação |
 |---|---|
-| Contrato inteligente, versão 3 | Concluído ([o que mudou](#versão-2-o-que-mudou)); publicação na Sepolia em andamento |
+| Contrato inteligente, versão 3 | Concluído e publicado na Sepolia em 14/10/2026 |
 | Testes automatizados (CT01 a CT14) | Concluídos, 15 de 15 aprovados |
 | Medição de custos | Concluída |
 | Versão 1 na rede Sepolia, com os cenários | Concluída em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-1)) |
 | Versão 2 na rede Sepolia, com os cenários | Concluída em 14/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-2)) |
+| Comparação de custos entre redes (Sepolia, Hoodi, Arbitrum Sepolia, Base Sepolia) | Em andamento |
 | Interface web (área da indústria e consulta por QR Code) | Publicada em [metalchain.vercel.app](https://metalchain.vercel.app) ([ver `web/`](web/README.md)) |
 
 ## Licença
