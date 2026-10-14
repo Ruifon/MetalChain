@@ -4,7 +4,7 @@ Publicada em **[metalchain.vercel.app](https://metalchain.vercel.app)**.
 
 Interface do protótipo, feita em React com Vite e ethers.js. Lê e grava no
 contrato publicado na Sepolia
-([`0xf8a4…6CdD`](https://sepolia.etherscan.io/address/0xf8a4bF980fcdc946610678FD322737c472826CdD), versão 2).
+([`0xB112…1cB7`](https://sepolia.etherscan.io/address/0xB112dc8970Fa8C27beA660f11F7B34B2Fbde1cB7), versão 3).
 
 | Tela | Endereço | Quem usa | Precisa de carteira? |
 |---|---|---|---|

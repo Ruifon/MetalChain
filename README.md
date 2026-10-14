@@ -44,23 +44,24 @@ corresponda ao comprimento e cada certificado sustenta uma única bobina.
 ### Contrato publicado na rede Sepolia
 
 O contrato está publicado na rede pública de testes da Ethereum e pode ser
-conferido por qualquer pessoa no explorador de blocos. A **versão 2** corrige as duas
-falhas encontradas nos testes com a interface (veja [Versão 2](#versão-2-o-que-mudou));
-a versão 1 continua publicada, com os registros feitos nela.
+conferido por qualquer pessoa no explorador de blocos. A **versão 3** é a versão
+final: reúne as correções da [versão 2](#versão-2-o-que-mudou) e a regra de que só a
+indústria que registrou a bobina pode gerar peças dela. As versões anteriores
+continuam publicadas, com os registros feitos nelas.
 
-| | Versão 2 (atual) |
+| | Versão 3 (atual) |
 |---|---|
-| **Endereço do contrato** | [`0xf8a4bF980fcdc946610678FD322737c472826CdD`](https://sepolia.etherscan.io/address/0xf8a4bF980fcdc946610678FD322737c472826CdD) |
-| **Transação de implantação** | [`0x0c85e4f3…abcdb8c`](https://sepolia.etherscan.io/tx/0x0c85e4f3024186c0a0cd0a74bf852d2cc44ba2eb2b379bea9c09ad0deabcdb8c) (bloco 11.912.627) |
-| **Credenciamento do operador** | [`0xcdf0b461…e0f6085`](https://sepolia.etherscan.io/tx/0xcdf0b461770b925c0a719ad1fcf0b8ec6fb4f6ea6b0f3ca562fc454cae0f6085) |
+| **Endereço do contrato** | [`0xB112dc8970Fa8C27beA660f11F7B34B2Fbde1cB7`](https://sepolia.etherscan.io/address/0xB112dc8970Fa8C27beA660f11F7B34B2Fbde1cB7) |
+| **Transação de implantação** | [`0x61ac314a…29df31d`](https://sepolia.etherscan.io/tx/0x61ac314a5d24fbb7e267f5704b368a7769eda0bf4d1d65fe7ba28a27d29df31d) (bloco 11.913.380) |
+| **Credenciamento do operador** | [`0xe963b896…e7113e4`](https://sepolia.etherscan.io/tx/0xe963b8968c57009802476c6aa08e5d8622abef049552c837132f31d76e7113e4) |
 
-Versão 1:
+Versões anteriores:
 
-| | |
-|---|---|
-| **Endereço do contrato** | [`0xCE8A2190A6977e11060D3BD725fD317a12E82370`](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370) |
-| **Transação de implantação** | [`0xbfd73651…6dde81`](https://sepolia.etherscan.io/tx/0xbfd73651e146b69a520030628a85adcfb307324cd2ef32bee291ec60296dde81) |
-| **Credenciamento do operador** | [`0x4e633828…dae56d0`](https://sepolia.etherscan.io/tx/0x4e6338284baa70bb1a49cc4344abe814a3277ca78267fd74a4aa5e085dae56d0) |
+| | Versão 2 | Versão 1 |
+|---|---|---|
+| **Endereço do contrato** | [`0xf8a4…6CdD`](https://sepolia.etherscan.io/address/0xf8a4bF980fcdc946610678FD322737c472826CdD) | [`0xCE8A…2370`](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370) |
+| **Transação de implantação** | [`0x0c85e4f3…abcdb8c`](https://sepolia.etherscan.io/tx/0x0c85e4f3024186c0a0cd0a74bf852d2cc44ba2eb2b379bea9c09ad0deabcdb8c) | [`0xbfd73651…6dde81`](https://sepolia.etherscan.io/tx/0xbfd73651e146b69a520030628a85adcfb307324cd2ef32bee291ec60296dde81) |
+| **Credenciamento do operador** | [`0xcdf0b461…e0f6085`](https://sepolia.etherscan.io/tx/0xcdf0b461770b925c0a719ad1fcf0b8ec6fb4f6ea6b0f3ca562fc454cae0f6085) | [`0x4e633828…dae56d0`](https://sepolia.etherscan.io/tx/0x4e6338284baa70bb1a49cc4344abe814a3277ca78267fd74a4aa5e085dae56d0) |
 
 ### Verificação em 5 minutos
 
