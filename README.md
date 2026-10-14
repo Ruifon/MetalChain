@@ -39,10 +39,18 @@ corresponda ao comprimento e cada certificado sustenta uma única bobina.
 
 ### Contrato publicado na rede Sepolia
 
-A **versão 1** do contrato está publicada na rede pública de testes da Ethereum e
-pode ser conferida por qualquer pessoa no explorador de blocos. A versão 2, que
-corrige as duas falhas encontradas nos testes com a interface (veja
-[Versão 2](#versão-2-o-que-mudou)), será publicada em seguida.
+O contrato está publicado na rede pública de testes da Ethereum e pode ser
+conferido por qualquer pessoa no explorador de blocos. A **versão 2** corrige as duas
+falhas encontradas nos testes com a interface (veja [Versão 2](#versão-2-o-que-mudou));
+a versão 1 continua publicada, com os registros feitos nela.
+
+| | Versão 2 (atual) |
+|---|---|
+| **Endereço do contrato** | [`0xf8a4bF980fcdc946610678FD322737c472826CdD`](https://sepolia.etherscan.io/address/0xf8a4bF980fcdc946610678FD322737c472826CdD) |
+| **Transação de implantação** | [`0x0c85e4f3…abcdb8c`](https://sepolia.etherscan.io/tx/0x0c85e4f3024186c0a0cd0a74bf852d2cc44ba2eb2b379bea9c09ad0deabcdb8c) (bloco 11.912.627) |
+| **Credenciamento do operador** | [`0xcdf0b461…e0f6085`](https://sepolia.etherscan.io/tx/0xcdf0b461770b925c0a719ad1fcf0b8ec6fb4f6ea6b0f3ca562fc454cae0f6085) |
+
+Versão 1:
 
 | | |
 |---|---|
@@ -350,7 +358,7 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 | Testes automatizados (CT01 a CT13) | Concluídos, 14 de 14 aprovados |
 | Medição de custos | Concluída |
 | Versão 1 na rede Sepolia, com os cenários | Concluída em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-1)) |
-| Versão 2 na rede Sepolia, com os cenários | Em andamento |
+| Versão 2 na rede Sepolia | Publicada em 14/10/2026; cenários em andamento |
 | Interface web (área da indústria e consulta por QR Code) | Pronta, testada em rede local; publicação no Vercel em andamento ([ver `web/`](web/README.md)) |
 
 ## Licença

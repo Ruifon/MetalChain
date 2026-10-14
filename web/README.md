@@ -2,7 +2,7 @@
 
 Interface do protótipo, feita em React com Vite e ethers.js. Lê e grava no
 contrato publicado na Sepolia
-([`0xCE8A…2370`](https://sepolia.etherscan.io/address/0xCE8A2190A6977e11060D3BD725fD317a12E82370)).
+([`0xf8a4…6CdD`](https://sepolia.etherscan.io/address/0xf8a4bF980fcdc946610678FD322737c472826CdD), versão 2).
 
 | Tela | Endereço | Quem usa | Precisa de carteira? |
 |---|---|---|---|
@@ -47,7 +47,7 @@ adicional) e não use a conta como "Smart Account". Com essas opções ligadas, 
 MetaMask encaminha a chamada por um contrato intermediário próprio
 (`DelegationManager`), a estimativa de gas fica curta e a gênese da bobina falha
 por falta de gas. Na tela de confirmação, o destino deve ser o próprio contrato
-MetalChain (`0xCE8A…2370`).
+MetalChain (`0xf8a4…6CdD`).
 
 ## Rodar no computador
 
