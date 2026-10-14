@@ -22,6 +22,7 @@ corresponda ao comprimento e cada certificado sustenta uma única bobina.
   - [Cenários de teste](#cenários-de-teste)
   - [Resultados obtidos](#resultados-obtidos)
   - [Versão 2: o que mudou](#versão-2-o-que-mudou)
+  - [Execução na rede Sepolia (versão 2)](#execução-na-rede-sepolia-versão-2)
   - [Execução na rede Sepolia (versão 1)](#execução-na-rede-sepolia-versão-1)
   - [Limites do protótipo](#limites-do-protótipo)
 - [Como o sistema funciona](#como-o-sistema-funciona)
@@ -161,6 +162,25 @@ massa** do produto, a peça herda a dimensão por referência e o contrato recus
 - uma peça cuja massa não corresponda ao comprimento, dentro da tolerância registrada
   (`massa incompativel com o comprimento`). Para barras e fios, a ABNT NBR 7480 admite
   ±6% de 6,3 a 12,5 mm e nos fios CA-60, ±5% de 16 a 20 mm e ±4% de 22 a 40 mm.
+
+### Execução na rede Sepolia (versão 2)
+
+Em 14/10/2026, com o script [`scripts/cenarios-sepolia.js`](scripts/cenarios-sepolia.js)
+(Seção 5.5.4 do TCC), sobre um rolo de vergalhão CA-50 de 10 mm (0,617 kg/m, ±6%):
+
+| Cenário | Operação | Resultado | Bloco | Gas | Transação |
+|---|---|---|---:|---:|---|
+| CT01 | Gênese do rolo `BOB-V2-2026-10-14-36340`, 2.000 kg | Aceita | 11912645 | 1.683.473 | [`0xa3d1e79a…9013`](https://sepolia.etherscan.io/tx/0xa3d1e79af0b89a7fca26a622629d195d78e5423642be6efdbd64e115fc4f9013) |
+| CT02 | Peça nº 1: 100 barras de 12 m, 745 kg (saldo: 1.255 kg) | Aceita | 11912646 | 827.166 | [`0x35011cc5…7620`](https://sepolia.etherscan.io/tx/0x35011cc5afe42ad33b3779d8b9d9bb9cb81a447acf2d59d6aab82f29af977620) |
+| CT02 | Peça nº 2: 80 barras de 12 m, 590 kg (saldo: 665 kg) | Aceita | 11912647 | 827.141 | [`0x7b58b757…6479`](https://sepolia.etherscan.io/tx/0x7b58b757559bfcd5ca7a510cff3108198da9ab76c2b16a835ec55bff33ac6479) |
+| CT03 | 120 barras (890 kg) com saldo de 665 kg | **Revertida**: `massa insuficiente` | 11912649 | 31.640 | [`0x3c7d2b7d…1a98`](https://sepolia.etherscan.io/tx/0x3c7d2b7d6e1e200289bd92e279f91d9dd289b110f1e48f02f7816c54df921a98) |
+| CT12 | Uma barra de 12 m declarada com 450 kg | **Revertida**: `massa incompativel com o comprimento` | 11912650 | 31.640 | [`0xd3568f2b…6593`](https://sepolia.etherscan.io/tx/0xd3568f2ba62eb6b3097dfcba17c6d37540056aa6c16584fb1ac72ea835746593) |
+| CT11 | Segunda bobina com o mesmo certificado | **Revertida**: `certificado ja utilizado` | 11912652 | — | [`0xc853f732…4e64`](https://sepolia.etherscan.io/tx/0xc853f73295dab99a1988bc3dde256b3f0dea2b1cc8fd4b10fc04b167339e4e64) |
+
+Leituras públicas: a peça nº 1 mostra a bitola de 10 mm herdada da bobina; saldo final de
+665 kg; o certificado de demonstração está vinculado apenas a `BOB-V2-2026-10-14-36340`.
+A implantação consumiu 15,5 milhões de gas na Sepolia, contra 2,2 milhões na rede local,
+porque a EIP-8037 também encarece a gravação do código do contrato.
 
 ### Execução na rede Sepolia (versão 1)
 
@@ -358,7 +378,7 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 | Testes automatizados (CT01 a CT13) | Concluídos, 14 de 14 aprovados |
 | Medição de custos | Concluída |
 | Versão 1 na rede Sepolia, com os cenários | Concluída em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-1)) |
-| Versão 2 na rede Sepolia | Publicada em 14/10/2026; cenários em andamento |
+| Versão 2 na rede Sepolia, com os cenários | Concluída em 14/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-2)) |
 | Interface web (área da indústria e consulta por QR Code) | Pronta, testada em rede local; publicação no Vercel em andamento ([ver `web/`](web/README.md)) |
 
 ## Licença
