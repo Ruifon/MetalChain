@@ -8,6 +8,9 @@ mais aço seja atribuído a um certificado do que o registrado na origem. Na ver
 a peça herda a bitola ou espessura da bobina, o contrato recusa peças cuja massa não
 corresponda ao comprimento e cada certificado sustenta uma única bobina.
 
+> **Experimente:** [metalchain.vercel.app](https://metalchain.vercel.app). Consulte, por
+> exemplo, a [peça nº 3](https://metalchain.vercel.app/peca/3), registrada na Sepolia com o contrato v2.
+
 > Protótipo desenvolvido como Trabalho de Conclusão de Curso do Bacharelado em
 > Sistemas de Informação do **Ifes, Campus Cachoeiro de Itapemirim** (2026).
 > **Autor:** Rui de Souza Fontoura Junior · **Orientador:** Prof. Dr. João Paulo de Brito Gonçalves
@@ -379,7 +382,7 @@ hardhat.config.js               configuração do Hardhat e da rede Sepolia
 | Medição de custos | Concluída |
 | Versão 1 na rede Sepolia, com os cenários | Concluída em 13/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-1)) |
 | Versão 2 na rede Sepolia, com os cenários | Concluída em 14/10/2026 ([ver resultados](#execução-na-rede-sepolia-versão-2)) |
-| Interface web (área da indústria e consulta por QR Code) | Pronta, testada em rede local; publicação no Vercel em andamento ([ver `web/`](web/README.md)) |
+| Interface web (área da indústria e consulta por QR Code) | Publicada em [metalchain.vercel.app](https://metalchain.vercel.app) ([ver `web/`](web/README.md)) |
 
 ## Licença
 
