@@ -42,6 +42,22 @@ async function main() {
   const signers = await ethers.getSigners();
   const industriaA = signers[0];
 
+  // Contas convertidas em conta inteligente (EIP-7702) só podem ter uma
+  // transação pendente por vez, e alguns provedores demoram a perceber que a
+  // anterior já foi incluída. Nesse caso, espera alguns segundos e reenvia.
+  const enviarOriginal = industriaA.sendTransaction.bind(industriaA);
+  industriaA.sendTransaction = async (tx) => {
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        return await enviarOriginal(tx);
+      } catch (e) {
+        const texto = `${e.message || ""} ${e.error?.message || ""}`;
+        if (!/in-flight transaction limit|replacement transaction underpriced|nonce too low/i.test(texto) || tentativa >= 20) throw e;
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+    }
+  };
+
   const saldoInicial = await prov.getBalance(industriaA.address);
   console.log(`Rede: ${network.name} (chainId ${chainId})`);
   console.log(`Carteira: ${industriaA.address}`);
@@ -114,7 +130,7 @@ async function main() {
 
   // Implantação
   const nome = process.env.NOME_INDUSTRIA || "Indústria Demonstração Ltda";
-  const mc = await (await ethers.getContractFactory("MetalChain")).deploy(nome);
+  const mc = await (await ethers.getContractFactory("MetalChain", industriaA)).deploy(nome);
   await mc.waitForDeployment();
   const endereco = await mc.getAddress();
   await anotar("—", "Implantação do contrato", mc.deploymentTransaction().hash, "aceita");
