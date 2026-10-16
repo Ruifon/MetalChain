@@ -4,7 +4,7 @@ import BarraMassa from "../components/BarraMassa.jsx";
 import Etiqueta from "../components/Etiqueta.jsx";
 import {
   buscarBobina, contratoEscrita, contratoLeitura, linkTx, mensagemErro, motivoDaRecusa,
-  pecaIdDoRecibo, provedorCarteira, temCarteira, trocarParaRede,
+  pecaIdDoRecibo, provedorCarteira, provedorLeitura, temCarteira, trocarParaRede,
 } from "../lib/chain.js";
 import { abreviar, kg, kgParaGramas, metros, metrosParaMm, sha256Arquivo } from "../lib/formato.js";
 import {
@@ -529,10 +529,18 @@ function useIndustrias() {
   const carregar = useCallback(async () => {
     try {
       const c = contratoLeitura();
-      const [cred, rev] = await Promise.all([
-        c.queryFilter(c.filters.OperadorCredenciado(), BLOCO_INICIAL),
-        c.queryFilter(c.filters.OperadorRevogado(), BLOCO_INICIAL),
-      ]);
+      // Nós públicos limitam a faixa de blocos de cada busca: consulta em janelas.
+      const ultimo = await provedorLeitura().getBlockNumber();
+      const JANELA = 5000;
+      const cred = [], rev = [];
+      for (let de = BLOCO_INICIAL; de <= ultimo; de += JANELA) {
+        const ate = Math.min(de + JANELA - 1, ultimo);
+        const [a, b] = await Promise.all([
+          c.queryFilter(c.filters.OperadorCredenciado(), de, ate),
+          c.queryFilter(c.filters.OperadorRevogado(), de, ate),
+        ]);
+        cred.push(...a); rev.push(...b);
+      }
       const eventos = [...cred, ...rev].sort((a, b) => a.blockNumber - b.blockNumber || a.index - b.index);
       const mapa = new Map();
       for (const ev of eventos) {
@@ -578,7 +586,9 @@ function FormAdmin({ contaAtual, aoMudar }) {
       setAndamento({
         fase: "ok", hash: tx.hash,
         texto: acao === "credenciar"
-          ? `${nomeAlvo} credenciada no bloco ${rec.blockNumber}. A carteira já pode registrar bobinas e peças.`
+          ? (situacao?.operador
+            ? `Nome alterado para ${nomeAlvo} no bloco ${rec.blockNumber}. A consulta pública passa a mostrar o novo nome.`
+            : `${nomeAlvo} credenciada no bloco ${rec.blockNumber}. A carteira já pode registrar bobinas e peças.`)
           : `Acesso revogado no bloco ${rec.blockNumber}. Os registros já feitos por essa carteira continuam valendo e mantêm o nome da indústria.`,
       });
       if (acao === "credenciar") { setCarteira(""); setNome(""); }
@@ -605,18 +615,20 @@ function FormAdmin({ contaAtual, aoMudar }) {
           {situacao && (
             <p className="dica">
               {situacao.operador
-                ? `Esta carteira já está credenciada como ${situacao.nome || "indústria sem nome"}.`
-                : situacao.nome ? `Já foi credenciada como ${situacao.nome} e está com o acesso revogado.` : "Esta carteira ainda não foi credenciada."}
+                ? `Credenciada como ${situacao.nome || "indústria sem nome"}. Para alterar o nome, escreva o novo nome abaixo.`
+                : situacao.nome ? `Já foi credenciada como ${situacao.nome} e está com o acesso revogado. Para reativar, informe o nome abaixo.` : "Esta carteira ainda não foi credenciada."}
             </p>
           )}
         </div>
         <div className="campo">
           <label htmlFor="a-nome">Nome da indústria</label>
           <input id="a-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Metalúrgica Exemplo Ltda." maxLength={60} required />
-          <p className="dica">O nome aparece na consulta pública de cada registro feito por essa carteira e fica gravado de forma permanente.</p>
+          <p className="dica">O nome aparece na consulta pública dos registros feitos por essa carteira. Ele pode ser alterado depois, e cada alteração fica registrada na rede.</p>
         </div>
         <div className="acoes">
-          <button className="btn btn-forte" type="submit" disabled={ocupado || !valida || !nome.trim() || situacao?.operador}>Credenciar indústria</button>
+          <button className="btn btn-forte" type="submit" disabled={ocupado || !valida || !nome.trim() || (situacao?.operador && nome.trim() === situacao.nome)}>
+            {situacao?.operador ? "Alterar nome" : situacao?.nome ? "Reativar com este nome" : "Credenciar indústria"}
+          </button>
           {situacao?.operador && (
             <button type="button" className="btn btn-quieto" disabled={ocupado} onClick={() => executar("revogar")}>Revogar acesso</button>
           )}
@@ -632,7 +644,8 @@ function FormAdmin({ contaAtual, aoMudar }) {
         {Array.isArray(lista) && lista.length > 0 && (
           <ul className="industrias">
             {lista.map((i) => (
-              <li key={i.carteira}>
+              <li key={i.carteira} className="industria-clicavel" title="Preencher o formulário com esta carteira"
+                  onClick={() => { setCarteira(i.carteira); setNome(i.nome); }}>
                 <span className={`ponto ${i.ativo ? "ponto-ok" : "ponto-alerta"}`} aria-hidden="true" />
                 <div>
                   <p className="industria-nome">{i.nome}</p>

@@ -229,6 +229,8 @@ select:focus { border-color: var(--aco); outline: 3px solid var(--amarelo); outl
 .industrias li > div { flex: 1; min-width: 0; }
 .industria-nome { font-weight: 600; margin: 0; }
 .industrias .hash { margin: 0; }
+.industria-clicavel { cursor: pointer; }
+.industria-clicavel:hover .industria-nome { text-decoration: underline; }
 .industria-estado { font-size: 14px; color: var(--carepa); }
 
 /* ---------- Rodapé ---------- */
